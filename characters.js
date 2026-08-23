@@ -46,7 +46,7 @@ export const CHAR_DB = {
     hp: 250,
     coolSpeed: 0.48,
     maxUltCharge: 3,
-    stats: { atk: 72, def: 76, spd: 66, cool: 93, ult: 95, utl: 64 },
+    stats: { atk: 65, def: 51, spd: 66, cool: 93, ult: 95, utl: 87 },
     desc: '모든 분야에 우수한 육각형 올라운더 및 똥 파밍 치유와 SSR 무지개 퍼리 버스트를 난사하는 스페셜리스트',
     basic: { name: '속보: 똥 투척', type: 'POOP_THROW', damage: 20 },
     ult: { name: 'SSR 퍼리 버스트!', type: 'FURRY_BURST', damage: 45 } // 총 9발 발사 (발당 궁극기 딜 / 9)
