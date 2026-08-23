@@ -2,13 +2,12 @@ import { CHAR_DB } from './characters.js';
 import { checkBounce, handleWallBounce } from './physics.js';
 
 // =========================================================================
-// [1] 사운드 시스템 (사운드 풀링 & 충돌 소리 0.1초 쿨타임)
+// [1] 사운드 시스템
 // =========================================================================
 const bgm = new Audio('sounds/bgm.mp3');
 bgm.loop = true;
 bgm.volume = 0.5;
 
-// 사운드 재생 지연(밀림)을 최소화하기 위한 SoundPool 클래스
 class SoundPool {
   constructor(src, size = 4) {
     this.pool = Array.from({ length: size }, () => {
@@ -33,7 +32,7 @@ const gongSkillPool = new SoundPool('sounds/gong_skill.mp3', 3);
 const sofaDropPool = new SoundPool('sounds/sofa_drop.mp3', 3);
 const kimEatPool = new SoundPool('sounds/kim_eat.mp3', 3);
 const kimSpitPool = new SoundPool('sounds/kim_spit.mp3', 3);
-const bouncePool = new SoundPool('sounds/bounce.mp3', 6); // 충돌 음원 풀
+const bouncePool = new SoundPool('sounds/bounce.mp3', 6);
 
 let lastBounceTime = 0;
 
@@ -43,10 +42,9 @@ function playSofaDropSfx() { sofaDropPool.play(bgm.volume); }
 function playKimEatSfx() { kimEatPool.play(bgm.volume); }
 function playKimSpitSfx() { kimSpitPool.play(bgm.volume); }
 
-// ★ 충돌 사운드 0.1초(100ms) 쿨타임 제한 (공이 낑겼을 때 소리 폭발 방지) ★
 function playBounceSfx() {
   const now = Date.now();
-  if (now - lastBounceTime >= 100) { // 0.1초 지나야만 다음 소리 재생
+  if (now - lastBounceTime >= 100) {
     lastBounceTime = now;
     bouncePool.play(bgm.volume);
   }
@@ -178,7 +176,6 @@ class Ball {
       if (this.eatableTimer <= 0) this.isEatable = false;
     }
 
-    // 김민채 먹방 메커니즘
     if (this.isEating) {
       this.eatingTimer -= gameSpeed;
       this.eatingDmgTimer += gameSpeed;
@@ -217,7 +214,6 @@ class Ball {
 
     if (this.isEaten) return;
 
-    // 공병은 돌진
     if (this.isDashing) {
       let currentAngle = Math.atan2(this.vy, this.vx);
       let targetAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -244,11 +240,9 @@ class Ball {
       }
     }
 
-    // 위치 이동
     this.x += this.vx * gameSpeed;
     this.y += this.vy * gameSpeed;
 
-    // 돌진 타격 판정
     if (this.isDashing && !this.dashHitTarget) {
       const dist = Math.hypot(target.x - this.x, target.y - this.y);
       if (dist < this.radius + target.radius + 4) {
@@ -264,7 +258,6 @@ class Ball {
       }
     }
 
-    // 벽 충돌 검사
     const hitWall = handleWallBounce(this, ARENA_SIZE);
     if (hitWall) {
       playBounceSfx();
@@ -284,7 +277,6 @@ class Ball {
       shakeTimer = 4;
     }
 
-    // 먹기 감지
     if (this.isEatable && !this.isEating && !target.isEaten) {
       const dist = Math.hypot(target.x - this.x, target.y - this.y);
       if (dist < this.radius + target.radius + 6) {
@@ -468,7 +460,7 @@ class Ball {
 
       const displayEmoji = this.isEating ? '🍽️' : this.data.emoji;
 
-      ctx.font = '22px sans-serif';
+      ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
@@ -484,7 +476,7 @@ class Ball {
         const starAngle = time + (Math.PI * 2 / 3) * i;
         const sx = this.x + Math.cos(starAngle) * starRadius;
         const sy = this.y - 10 + Math.sin(starAngle) * 5;
-        ctx.font = '12px sans-serif';
+        ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('💫', sx, sy);
@@ -494,7 +486,7 @@ class Ball {
     ctx.restore();
 
     if (this.isWinner) {
-      ctx.font = '20px sans-serif';
+      ctx.font = 'bold 20px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('👑', this.x, this.y - this.radius - 6);
     }
@@ -621,7 +613,7 @@ function drawHexagonFrame(hCtx, logicalW, logicalH, charData, scaleProgress) {
     hCtx.stroke();
   }
 
-  hCtx.font = '800 8px sans-serif';
+  hCtx.font = 'bold 8px "NeoDunggeunmo", sans-serif';
   hCtx.textAlign = 'center';
   hCtx.textBaseline = 'middle';
   hCtx.fillStyle = labelTextColor;
@@ -856,7 +848,7 @@ function loop() {
         const progress = 1 - ef.life / ef.maxLife;
         ef.currentY = -60 + (ef.targetY + 60) * Math.pow(progress, 2);
 
-        ctx.font = '55px sans-serif';
+        ctx.font = 'bold 55px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🛋️', ef.x, ef.currentY);
@@ -889,7 +881,7 @@ function loop() {
       proj.y += proj.vy * gameSpeed;
       proj.life -= gameSpeed;
 
-      ctx.font = '900 22px sans-serif';
+      ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
       ctx.fillStyle = proj.color;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -913,7 +905,7 @@ function loop() {
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
       const ft = floatingTexts[i];
       ctx.fillStyle = ft.color;
-      ctx.font = '900 13px monospace';
+      ctx.font = 'bold 14px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(ft.text, ft.x, ft.y);
       ft.y -= 0.4 * gameSpeed;

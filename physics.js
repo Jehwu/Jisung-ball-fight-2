@@ -1,6 +1,5 @@
 export function checkBounce(b1, b2) {
-  // 먹힌 상태에서는 충돌 무시
-  if (b1.isEaten || b2.isEaten) return;
+  if (b1.isEaten || b2.isEaten) return false;
 
   const dx = b2.x - b1.x;
   const dy = b2.y - b1.y;
@@ -17,8 +16,7 @@ export function checkBounce(b1, b2) {
     b2.x += nx * overlap * 0.5;
     b2.y += ny * overlap * 0.5;
 
-    // 돌진 중인 공이 상대와 부딪혔을 때 속도가 줄어들거나 멈추지 않도록 예외 처리
-    if (b1.isDashing || b2.isDashing) return;
+    if (b1.isDashing || b2.isDashing) return true;
 
     const kx = b1.vx - b2.vx;
     const ky = b1.vy - b2.vy;
@@ -28,7 +26,10 @@ export function checkBounce(b1, b2) {
     b1.vy -= p * ny;
     b2.vx += p * nx;
     b2.vy += p * ny;
+
+    return true;
   }
+  return false;
 }
 
 export function handleWallBounce(ball, arenaSize) {
@@ -41,7 +42,7 @@ export function handleWallBounce(ball, arenaSize) {
 
   const maxSpd = ball.wallDebuffTimer > 0 ? 10.0 : 1.8;
   const currentSpeed = Math.hypot(ball.vx, ball.vy);
-  
+
   if (currentSpeed > maxSpd && !ball.isDashing) {
     ball.vx = (ball.vx / currentSpeed) * maxSpd;
     ball.vy = (ball.vy / currentSpeed) * maxSpd;

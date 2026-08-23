@@ -1,4 +1,4 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10-21@1.0/NeoDunggeunmo.css');
 
 * {
   box-sizing: border-box;
@@ -6,6 +6,8 @@
   padding: 0;
   user-select: none;
   border-radius: 0 !important;
+  font-family: 'NeoDunggeunmo', sans-serif;
+  font-weight: bold; /* 두껍게 처리 */
 }
 
 #game-container.dark-theme {
@@ -14,7 +16,7 @@
   --bg-canvas: #050608;
   --border-color: #2a2f3d;
   --text-main: #ffffff;
-  --text-sub: #6c7285;
+  --text-sub: #8a8f9d;
 }
 
 #game-container.light-theme {
@@ -29,7 +31,6 @@
 body {
   background-color: #030405;
   color: #ffffff;
-  font-family: 'Pretendard', -apple-system, sans-serif;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -37,7 +38,7 @@ body {
   overflow: hidden;
 }
 
-/* ★ 전체 게임 컨테이너 규격 확대 (300x480 -> 320x510) ★ */
+/* 원본 사각형 테크 컨테이너 규격 */
 #game-container {
   position: relative;
   width: 320px;
@@ -49,6 +50,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: transform 0.2s ease;
+}
+
+/* PC 화면 접속 시 깔끔하게 전체 1.35배 확대 */
+@media (min-width: 768px) {
+  #game-container {
+    transform: scale(1.35);
+  }
 }
 
 .screen {
@@ -83,7 +92,6 @@ body {
 
 .mini-title {
   font-size: 11px;
-  font-weight: 900;
   letter-spacing: 0.5px;
   color: var(--text-main);
 }
@@ -94,13 +102,11 @@ body {
   color: var(--text-main);
   padding: 3px 6px;
   font-size: 10px;
-  font-weight: 800;
   cursor: pointer;
 }
 
 .game-title {
-  font-size: 26px;
-  font-weight: 900;
+  font-size: 24px;
   color: #ff3344;
   letter-spacing: 1px;
   margin-bottom: 4px;
@@ -111,12 +117,10 @@ body {
   font-size: 10px;
   color: var(--text-sub);
   margin-bottom: 24px;
-  font-weight: 800;
 }
 
 .screen-title {
   font-size: 15px;
-  font-weight: 900;
   color: var(--text-main);
   margin-bottom: 12px;
 }
@@ -129,7 +133,6 @@ body {
   border: 1px solid var(--border-color);
   color: var(--text-main);
   font-size: 12px;
-  font-weight: 800;
   cursor: pointer;
   text-align: center;
 }
@@ -148,7 +151,6 @@ body {
   margin-top: 2px;
 }
 
-/* 설정 화면 UI 스타일 */
 .setting-card {
   width: 100%;
   background: var(--bg-card);
@@ -167,7 +169,6 @@ body {
 
 .setting-label {
   font-size: 11px;
-  font-weight: 800;
   color: var(--text-main);
 }
 
@@ -177,7 +178,6 @@ body {
   color: var(--text-main);
   padding: 4px 8px;
   font-size: 10px;
-  font-weight: 800;
   cursor: pointer;
 }
 
@@ -188,15 +188,14 @@ body {
   cursor: pointer;
 }
 
-/* 캐릭터 선택 카드 UI */
 .char-select-section { width: 100%; margin-bottom: 12px; }
-.section-label { font-size: 10px; font-weight: 900; margin-bottom: 4px; }
+.section-label { font-size: 10px; margin-bottom: 4px; }
 .p1-color { color: #ff3344; }
-.p2-color { color: #00e676; }
+.p2-color { color: #48dbfb; }
 
 .char-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   width: 100%;
 }
@@ -205,23 +204,22 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   padding: 8px 0;
   cursor: pointer;
 }
 
-.char-card .char-emoji { font-size: 18px; margin-bottom: 2px; }
-.char-card .char-name { font-size: 9px; font-weight: 800; color: var(--text-sub); }
+.char-card .char-emoji { font-size: 16px; }
+.char-card .char-name { font-size: 10px; color: var(--text-sub); }
 
 #p1-char-grid .char-card.selected { border: 2px solid #ff3344; background: rgba(255, 51, 68, 0.15); }
 #p1-char-grid .char-card.selected .char-name { color: #ff3344; }
 
-#p2-char-grid .char-card.selected { border: 2px solid #00e676; background: rgba(0, 230, 118, 0.15); }
-#p2-char-grid .char-card.selected .char-name { color: #00e676; }
+#p2-char-grid .char-card.selected { border: 2px solid #48dbfb; background: rgba(72, 219, 251, 0.15); }
+#p2-char-grid .char-card.selected .char-name { color: #48dbfb; }
 
-/* 캐릭터 사전 UI */
 .dict-tabs { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; }
 
 .dict-tab {
@@ -249,8 +247,8 @@ body {
 }
 
 .dict-header { text-align: center; margin-bottom: 2px; }
-.dict-name-title { font-size: 13px; font-weight: 900; display: block; }
-.dict-desc-text { font-size: 9px; color: var(--text-sub); margin-top: 1px; display: block; }
+.dict-name-title { font-size: 13px; display: block; }
+.dict-desc-text { font-size: 9px; color: var(--text-sub); margin-top: 2px; display: block; line-height: 1.2; }
 
 .hexagon-box {
   width: 170px;
@@ -273,17 +271,15 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 10px;
-  font-weight: 700;
   color: var(--text-main);
 }
 
-.skill-tag { font-size: 8px; padding: 1px 4px; font-weight: 900; }
-.basic-tag { background: #2a2f3d; color: #00d2d3; }
+.skill-tag { font-size: 8px; padding: 1px 4px; }
+.basic-tag { background: #2a2f3d; color: #48dbfb; }
 .ult-tag { background: #ffc107; color: #000; }
 
 #screen-game { padding: 0; justify-content: flex-start; }
 
-/* ★ 아레나 Canvas 크기 확대 (280x280 -> 300x300) ★ */
 canvas#gameCanvas {
   display: block;
   width: 300px;
@@ -305,8 +301,8 @@ canvas#gameCanvas {
 
 .player-card { display: flex; flex-direction: column; gap: 1px; }
 .player-header { display: flex; justify-content: space-between; align-items: center; }
-.player-name { font-size: 10px; font-weight: 900; }
-.hp-text { font-size: 9px; font-weight: 800; color: var(--text-sub); font-family: monospace; }
+.player-name { font-size: 10px; }
+.hp-text { font-size: 9px; color: var(--text-sub); }
 
 .bar-frame { width: 100%; background: var(--bg-main); border: 1px solid var(--border-color); position: relative; overflow: hidden; }
 .hp-frame { height: 10px; }
@@ -315,13 +311,12 @@ canvas#gameCanvas {
 
 .bar-fill { height: 100%; width: 100%; transition: width 0.1s linear; }
 
-.p1-hp-fill, .p2-hp-fill { background: #00e676; }
-.p1-skill-fill { background: #ff9f43; }
-.p2-skill-fill { background: #00d2d3; }
-.p1-ult-fill { background: linear-gradient(90deg, #ffc107, #ff9f43); }
-.p2-ult-fill { background: linear-gradient(90deg, #a55eea, #45aaf2); }
+.p1-hp-fill { background: #ff7675; }
+.p2-hp-fill { background: #48dbfb; }
+.p1-skill-fill, .p2-skill-fill { background: #00d2d3; }
+.p1-ult-fill, .p2-ult-fill { background: linear-gradient(90deg, #ffc107, #ff9f43); }
 
-.bar-label { font-size: 7px; font-weight: 800; color: var(--text-sub); margin-top: 1px; }
+.bar-label { font-size: 7px; color: var(--text-sub); margin-top: 1px; }
 .ult-label { color: #ffc107; }
 
 #overlay-msg {
@@ -333,7 +328,6 @@ canvas#gameCanvas {
   border: 2px solid var(--text-main);
   padding: 6px 14px;
   font-size: 16px;
-  font-weight: 900;
   color: var(--text-main);
   text-align: center;
   pointer-events: none;
