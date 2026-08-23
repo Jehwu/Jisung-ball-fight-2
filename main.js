@@ -34,6 +34,10 @@ const kimEatPool = new SoundPool('sounds/kim_eat.mp3', 3);
 const kimSpitPool = new SoundPool('sounds/kim_spit.mp3', 3);
 const bouncePool = new SoundPool('sounds/bounce.mp3', 6);
 
+const parkShootPool = new SoundPool('sounds/park_shoot.mp3', 3);
+const parkUltChargePool = new SoundPool('sounds/park_ult_charge.mp3', 2);
+const parkUltShootPool = new SoundPool('sounds/park_ult_shoot.mp3', 2);
+
 let lastBounceTime = 0;
 
 function playClickSfx() { clickPool.play(bgm.volume); }
@@ -41,6 +45,9 @@ function playGongSkillSfx() { gongSkillPool.play(bgm.volume); }
 function playSofaDropSfx() { sofaDropPool.play(bgm.volume); }
 function playKimEatSfx() { kimEatPool.play(bgm.volume); }
 function playKimSpitSfx() { kimSpitPool.play(bgm.volume); }
+function playParkShootSfx() { parkShootPool.play(bgm.volume); }
+function playParkUltChargeSfx() { parkUltChargePool.play(bgm.volume); }
+function playParkUltShootSfx() { parkUltShootPool.play(bgm.volume); }
 
 function playBounceSfx() {
   const now = Date.now();
@@ -107,8 +114,8 @@ class Ball {
     this.x = x;
     this.y = y;
     this.radius = radius;
-    this.maxHp = 300;
-    this.hp = 300;
+    this.maxHp = 250;
+    this.hp = 250;
     this.skillCool = 0;
     this.ultCharge = 0;
     this.vx = 0;
@@ -126,6 +133,13 @@ class Ball {
     this.isDashing = false;
     this.dashHitTarget = false;
     this.stunTimer = 0;
+
+    this.isAiming = false;
+    this.aimTimer = 0;
+    this.aimTarget = null;
+    this.isUltAim = false;
+    this.eyeStacks = [];
+    this.eyeDmgTimer = 0;
   }
 
   init(charData) {
@@ -153,14 +167,33 @@ class Ball {
     this.dashHitTarget = false;
     this.stunTimer = 0;
 
+    this.isAiming = false;
+    this.aimTimer = 0;
+    this.aimTarget = null;
+    this.isUltAim = false;
+    this.eyeStacks = [];
+    this.eyeDmgTimer = 0;
+
     const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
-    this.vx = (Math.random() < 0.5 ? 1 : -1) * 0.9 * charSpeed;
-    this.vy = (Math.random() < 0.5 ? 1 : -1) * 0.9 * charSpeed;
+    const randomAngle = Math.random() * Math.PI * 2;
+    const baseSpeed = 0.9 * charSpeed;
+    this.vx = Math.cos(randomAngle) * baseSpeed;
+    this.vy = Math.sin(randomAngle) * baseSpeed;
     this.isWinner = false;
   }
 
   update(target) {
     if (gameState !== 'PLAYING') return;
+
+    if (this.eyeStacks.length > 0 && this.hp > 0) {
+      this.eyeDmgTimer += gameSpeed;
+      if (this.eyeDmgTimer >= 60) {
+        this.eyeDmgTimer = 0;
+        const totalDmg = this.eyeStacks.length * 3;
+        applyDamage(this, totalDmg);
+        addFloatingText(this.x, this.y - 18, `-${totalDmg}`);
+      }
+    }
 
     if (this.stunTimer > 0) {
       this.stunTimer -= gameSpeed;
@@ -176,6 +209,91 @@ class Ball {
       if (this.eatableTimer <= 0) this.isEatable = false;
     }
 
+    if (this.isAiming && this.aimTarget) {
+      this.aimTimer -= gameSpeed;
+      this.vx = 0;
+      this.vy = 0;
+
+      if (this.isUltAim) {
+        shakeTimer = Math.max(shakeTimer, 2);
+
+        for (let i = 0; i < 3; i++) {
+          const auraAngle = Math.random() * Math.PI * 2;
+          const auraDist = Math.random() * 50 + 15;
+          skillEffects.push({
+            type: 'AURA',
+            x: this.x + Math.cos(auraAngle) * auraDist,
+            y: this.y + Math.sin(auraAngle) * auraDist,
+            targetX: this.x,
+            targetY: this.y,
+            color: Math.random() < 0.5 ? '#10ac84' : '#55efc4',
+            life: 18
+          });
+        }
+
+        if (Math.floor(this.aimTimer) % 12 === 0) {
+          skillEffects.push({
+            type: 'CHARGE_PULSE',
+            x: this.x,
+            y: this.y,
+            radius: 8,
+            maxRadius: 65,
+            color: '#10ac84',
+            life: 20
+          });
+        }
+      }
+
+      if (this.aimTimer <= 0) {
+        this.isAiming = false;
+        
+        const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
+        const resumeAngle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(resumeAngle) * 0.9 * charSpeed;
+        this.vy = Math.sin(resumeAngle) * 0.9 * charSpeed;
+
+        if (this.isUltAim) {
+          shakeTimer = 20;
+          playParkUltShootSfx();
+
+          skillEffects.push({
+            type: 'LASER_BEAM',
+            x1: this.x,
+            y1: this.y,
+            x2: this.aimTarget.x,
+            y2: this.aimTarget.y,
+            color: '#10ac84',
+            life: 28
+          });
+
+          applyDamage(this.aimTarget, 0);
+          addFloatingText(this.aimTarget.x, this.aimTarget.y - 20, '-0');
+          
+          const hitAngle = Math.atan2(this.y - this.aimTarget.y, this.x - this.aimTarget.x);
+          this.aimTarget.eyeStacks.push({ angle: hitAngle });
+        } else {
+          shakeTimer = 8;
+          playParkShootSfx();
+
+          const angle = Math.atan2(this.aimTarget.y - this.y, this.aimTarget.x - this.x);
+          const projSpeed = 10.0;
+
+          projectiles.push({
+            x: this.x,
+            y: this.y,
+            vx: Math.cos(angle) * projSpeed,
+            vy: Math.sin(angle) * projSpeed,
+            damage: 25,
+            target: this.aimTarget,
+            color: this.data.color,
+            isBullet: true,
+            life: 100
+          });
+        }
+      }
+      return;
+    }
+
     if (this.isEating) {
       this.eatingTimer -= gameSpeed;
       this.eatingDmgTimer += gameSpeed;
@@ -188,7 +306,7 @@ class Ball {
       if (this.eatingDmgTimer >= 60) {
         this.eatingDmgTimer = 0;
         applyDamage(target, 12);
-        addFloatingText(this.x, this.y - 20, '-12', '#ff3344');
+        addFloatingText(this.x, this.y - 20, '-12');
         shakeTimer = 8;
       }
 
@@ -248,7 +366,7 @@ class Ball {
       if (dist < this.radius + target.radius + 4) {
         this.dashHitTarget = true;
         applyDamage(target, 20);
-        addFloatingText(target.x, target.y - 15, '-20', '#ff3344');
+        addFloatingText(target.x, target.y - 15, '-20');
         shakeTimer = 8;
 
         const knockAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -273,7 +391,7 @@ class Ball {
 
     if (hitWall && this.wallDebuffTimer > 0) {
       applyDamage(this, 5);
-      addFloatingText(this.x, this.y - 15, '-5', '#ff3344');
+      addFloatingText(this.x, this.y - 15, '-5');
       shakeTimer = 4;
     }
 
@@ -290,7 +408,7 @@ class Ball {
       }
     }
 
-    if (!p1.isEating && !p2.isEating && this.stunTimer <= 0 && this.skillCool < 100) {
+    if (!p1.isEating && !p2.isEating && this.stunTimer <= 0 && !this.isAiming && this.skillCool < 100) {
       this.skillCool += this.data.coolSpeed * gameSpeed;
       if (this.skillCool >= 100) {
         this.skillCool = 100;
@@ -317,16 +435,17 @@ class Ball {
         const dx = target.x - this.x;
         const dy = target.y - this.y;
         const angle = Math.atan2(dy, dx);
-        const projSpeed = 2.8;
+        const projSpeed = 3.6;
 
         projectiles.push({
           x: this.x,
           y: this.y,
           vx: Math.cos(angle) * projSpeed,
           vy: Math.sin(angle) * projSpeed,
-          damage: 13,
+          damage: 18, // 18 데미지 적용
           target: target,
           color: this.data.color,
+          isBullet: false,
           life: 140
         });
       }
@@ -356,6 +475,19 @@ class Ball {
         const dashSpd = 3.6;
         this.vx = Math.cos(angle) * dashSpd;
         this.vy = Math.sin(angle) * dashSpd;
+      }
+    } else if (this.data.basic.type === 'SNIPER_BULLET') {
+      this.isAiming = true;
+      this.aimTimer = 120;
+      this.aimTarget = target;
+
+      if (isUltReady) {
+        this.ultCharge = 0;
+        this.isUltAim = true;
+        playParkUltChargeSfx();
+      } else {
+        this.ultCharge++;
+        this.isUltAim = false;
       }
     }
   }
@@ -469,6 +601,80 @@ class Ball {
       ctx.fillText(displayEmoji, this.x + shakeX, this.y + 1 + shakeY);
     }
 
+    if (this.eyeStacks.length > 0 && this.hp > 0) {
+      this.eyeStacks.forEach(stack => {
+        const eyeX = this.x + Math.cos(stack.angle) * (this.radius + 2);
+        const eyeY = this.y + Math.sin(stack.angle) * (this.radius + 2);
+        ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('👁️', eyeX, eyeY);
+      });
+    }
+
+    if (this.isAiming && this.aimTarget) {
+      const aimAngle = Math.atan2(this.aimTarget.y - this.y, this.aimTarget.x - this.x);
+      
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(aimAngle);
+
+      ctx.fillStyle = '#2f3542';
+      ctx.fillRect(10, -4, 26, 8);
+      ctx.fillStyle = this.isUltAim ? '#10ac84' : '#ff3344';
+      ctx.fillRect(16, -8, 10, 4);
+      ctx.fillStyle = '#ff4757';
+      ctx.fillRect(36, -3, 5, 6);
+
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.aimTarget.x, this.aimTarget.y);
+      ctx.strokeStyle = this.isUltAim ? 'rgba(16, 172, 132, 0.6)' : 'rgba(255, 51, 68, 0.5)';
+      ctx.lineWidth = this.isUltAim ? 2 : 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(this.aimTarget.x, this.aimTarget.y);
+      
+      const pulse = 1 + Math.sin(Date.now() / 50) * 0.15;
+      const crossRadius = (this.aimTarget.radius + 12) * pulse;
+      const color = this.isUltAim ? '#10ac84' : '#ff3344';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = this.isUltAim ? 3 : 2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, crossRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.rotate(Date.now() / 150);
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.arc(0, 0, crossRadius - 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      const lineStart = crossRadius - 6;
+      const lineEnd = crossRadius + 12;
+
+      ctx.beginPath();
+      ctx.moveTo(-lineEnd, 0); ctx.lineTo(-lineStart, 0);
+      ctx.moveTo(lineStart, 0); ctx.lineTo(lineEnd, 0);
+      ctx.moveTo(0, -lineEnd); ctx.lineTo(0, -lineStart);
+      ctx.moveTo(0, lineStart); ctx.lineTo(0, lineEnd);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     if (this.stunTimer > 0 && this.hp > 0) {
       const time = Date.now() / 90;
       const starRadius = this.radius + 5;
@@ -515,7 +721,7 @@ function triggerDeathExplosion(ball) {
 }
 
 // =========================================================================
-// [4] 게임 상태 및 투사체 제어
+// [4] 게임 상태 및 투사체/이펙트 제어
 // =========================================================================
 function applyDamage(target, amount) {
   if (gameState !== 'PLAYING') return;
@@ -528,8 +734,8 @@ function applyDamage(target, amount) {
   }
 }
 
-function addFloatingText(x, y, text, color) {
-  floatingTexts.push({ x, y, text, color, alpha: 1.0 });
+function addFloatingText(x, y, text) {
+  floatingTexts.push({ x, y, text, color: '#ff3344', alpha: 1.0 });
 }
 
 function updateHUD() {
@@ -809,6 +1015,49 @@ function loop() {
         ctx.fill();
         ef.life -= gameSpeed;
       }
+      else if (ef.type === 'AURA') {
+        ef.x += (ef.targetX - ef.x) * 0.18;
+        ef.y += (ef.targetY - ef.y) * 0.18;
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = ef.color;
+        ctx.shadowColor = ef.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ef.life -= gameSpeed;
+      }
+      else if (ef.type === 'CHARGE_PULSE') {
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = ef.color;
+        ctx.lineWidth = 3 * (ef.life / 20);
+        ctx.shadowColor = ef.color;
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ef.radius += 2.8 * gameSpeed;
+        ef.life -= gameSpeed;
+      }
+      else if (ef.type === 'LASER_BEAM') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(ef.x1, ef.y1);
+        ctx.lineTo(ef.x2, ef.y2);
+        ctx.strokeStyle = ef.color;
+        ctx.lineWidth = 18 * (ef.life / 28);
+        ctx.shadowColor = ef.color;
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(ef.x1, ef.y1);
+        ctx.lineTo(ef.x2, ef.y2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 6 * (ef.life / 28);
+        ctx.stroke();
+        ctx.restore();
+
+        ef.life -= gameSpeed;
+      }
       else if (ef.type === 'INSANITY_WARN') {
         const progress = 1 - ef.life / ef.maxLife;
 
@@ -865,7 +1114,7 @@ function loop() {
               if (dist <= ef.radius + p.radius) {
                 applyDamage(p, ef.damage);
                 p.stunTimer = 60;
-                addFloatingText(p.x, p.y - 15, `-40`, '#ff3344');
+                addFloatingText(p.x, p.y - 15, `-40`);
               }
             }
           });
@@ -881,16 +1130,48 @@ function loop() {
       proj.y += proj.vy * gameSpeed;
       proj.life -= gameSpeed;
 
-      ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
-      ctx.fillStyle = proj.color;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('BL', proj.x, proj.y);
+      if (proj.isBullet) {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        const bulletAngle = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(bulletAngle);
+
+        ctx.beginPath();
+        ctx.moveTo(-16, 0);
+        ctx.lineTo(-4, 0);
+        ctx.strokeStyle = '#ff3344';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#ff3344';
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(-6, -2.5, 8, 5);
+
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.moveTo(2, -2.5);
+        ctx.lineTo(8, 0);
+        ctx.lineTo(2, 2.5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-4, -1, 7, 1);
+
+        ctx.restore();
+      } else {
+        ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
+        ctx.fillStyle = proj.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('BL', proj.x, proj.y);
+      }
 
       const dist = Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y);
       if (dist < proj.target.radius + 6) {
         applyDamage(proj.target, proj.damage);
-        addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
+        addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`);
         shakeTimer = 5;
         projectiles.splice(i, 1);
         continue;
@@ -905,7 +1186,7 @@ function loop() {
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
       const ft = floatingTexts[i];
       ctx.fillStyle = ft.color;
-      ctx.font = 'bold 14px "NeoDunggeunmo", sans-serif';
+      ctx.font = 'bold 15px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(ft.text, ft.x, ft.y);
       ft.y -= 0.4 * gameSpeed;
