@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>JS BALL BATTLE 2</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="game-container" class="dark-theme">
+    <!-- 1. 메인 화면 -->
+    <div id="screen-main" class="screen active">
+      <h1 class="game-title">JS BALL BATTLE 2</h1>
+      <p class="game-subtitle">SQUARE ARENA EDITION</p>
+      <button id="btn-start" class="btn-tech">게임 시작</button>
+      <button id="btn-dict" class="btn-tech">캐릭터 사전</button>
+      <button id="btn-settings" class="btn-tech">⚙️ 설 정</button>
+    </div>
+
+    <!-- 2. 환경설정 화면 -->
+    <div id="screen-settings" class="screen">
+      <h2 class="screen-title">SETTINGS</h2>
+      
+      <div class="setting-card">
+        <div class="setting-row">
+          <span class="setting-label">☀️/🌙 테마</span>
+          <button id="btn-theme-settings" class="btn-tech-sm">테마 변경</button>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">🎵 BGM 볼륨</span>
+          <input type="range" id="bgm-volume" min="0" max="1" step="0.05" value="0.5">
+        </div>
+      </div>
+
+      <button id="btn-back-settings" class="btn-tech secondary" style="margin-top: 16px;">뒤로가기</button>
+    </div>
+
+    <!-- 3. 모드 선택 화면 -->
+    <div id="screen-mode" class="screen">
+      <h2 class="screen-title">MODE SELECT</h2>
+      <button id="btn-mode-1v1" class="btn-tech">1 vs 1 클래식</button>
+      <button class="btn-tech disabled" disabled>토너먼트 (준비중)</button>
+      <button id="btn-back-mode" class="btn-tech secondary">뒤로가기</button>
+    </div>
+
+    <!-- 4. 캐릭터 선택 화면 -->
+    <div id="screen-char" class="screen">
+      <h2 class="screen-title">CHARACTER SELECT</h2>
+      
+      <div class="char-select-section">
+        <div class="section-label p1-color">PLAYER 1</div>
+        <div id="p1-char-grid" class="char-grid">
+          <div class="char-card selected" data-key="KIM"><span class="char-emoji">🐽</span><span class="char-name">김민채</span></div>
+          <div class="char-card" data-key="GONG"><span class="char-emoji">🗣️</span><span class="char-name">공병은</span></div>
+        </div>
+      </div>
+
+      <div class="char-select-section">
+        <div class="section-label p2-color">PLAYER 2</div>
+        <div id="p2-char-grid" class="char-grid">
+          <div class="char-card" data-key="KIM"><span class="char-emoji">🐽</span><span class="char-name">김민채</span></div>
+          <div class="char-card selected" data-key="GONG"><span class="char-emoji">🗣️</span><span class="char-name">공병은</span></div>
+        </div>
+      </div>
+
+      <button id="btn-battle-start" class="btn-tech" style="margin-top: 8px;">배틀 시작</button>
+      <button id="btn-back-char" class="btn-tech secondary">뒤로가기</button>
+    </div>
+
+    <!-- 5. 캐릭터 사전 화면 -->
+    <div id="screen-dict" class="screen">
+      <h2 class="screen-title" style="margin-bottom: 6px;">CHARACTER BOOK</h2>
+      
+      <div class="dict-tabs">
+        <button class="dict-tab active" data-key="KIM">🐽</button>
+        <button class="dict-tab" data-key="GONG">🗣️</button>
+      </div>
+
+      <div class="dict-card">
+        <div class="dict-header">
+          <span id="dict-name" class="dict-name-title">🐽 김민채</span>
+          <span id="dict-desc" class="dict-desc-text">설명</span>
+        </div>
+
+        <div class="hexagon-box">
+          <canvas id="hexagonCanvas"></canvas>
+        </div>
+
+        <div class="dict-skills">
+          <div class="dict-skill-row"><span class="skill-tag basic-tag">기본</span><span id="dict-basic-skill">BL 투척</span></div>
+          <div class="dict-skill-row"><span class="skill-tag ult-tag">궁극</span><span id="dict-ult-skill">170KG의 먹방</span></div>
+        </div>
+      </div>
+
+      <button id="btn-back-dict" class="btn-tech secondary" style="margin-top: 6px;">뒤로가기</button>
+    </div>
+
+    <!-- 6. 인게임 화면 -->
+    <div id="screen-game" class="screen">
+      <div class="top-bar">
+        <span class="mini-title">JS BALL BATTLE 2</span>
+        <div class="top-controls">
+          <button id="btn-speed" class="btn-theme">⚡ 1.0x</button>
+        </div>
+      </div>
+
+      <canvas id="gameCanvas"></canvas>
+
+      <div id="overlay-msg">READY</div>
+
+      <div class="hud">
+        <div class="player-card">
+          <div class="player-header">
+            <span id="p1-name-display" class="player-name p1-color">🐽 김민채</span>
+            <span id="p1-hp-text" class="hp-text">300/300</span>
+          </div>
+          <div class="bar-frame hp-frame"><div id="p1-hp-fill" class="bar-fill p1-hp-fill"></div></div>
+          <div class="bar-label">SKILL COOL</div>
+          <div class="bar-frame skill-frame"><div id="p1-skill-fill" class="bar-fill p1-skill-fill" style="width: 0%;"></div></div>
+          <div class="bar-label ult-label">ULTIMATE GAUGE</div>
+          <div class="bar-frame ult-frame"><div id="p1-ult-fill" class="bar-fill p1-ult-fill" style="width: 0%;"></div></div>
+        </div>
+
+        <div class="player-card">
+          <div class="player-header">
+            <span id="p2-name-display" class="player-name p2-color">🗣️ 공병은</span>
+            <span id="p2-hp-text" class="hp-text">250/250</span>
+          </div>
+          <div class="bar-frame hp-frame"><div id="p2-hp-fill" class="bar-fill p2-hp-fill"></div></div>
+          <div class="bar-label" style="text-align: right;">SKILL COOL</div>
+          <div class="bar-frame skill-frame"><div id="p2-skill-fill" class="bar-fill p2-skill-fill" style="width: 0%;"></div></div>
+          <div class="bar-label ult-label" style="text-align: right;">ULTIMATE GAUGE</div>
+          <div class="bar-frame ult-frame"><div id="p2-ult-fill" class="bar-fill p2-ult-fill" style="width: 0%;"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
