@@ -38,6 +38,9 @@ const parkShootPool = new SoundPool('sounds/park_shoot.mp3', 3);
 const parkUltChargePool = new SoundPool('sounds/park_ult_charge.mp3', 2);
 const parkUltShootPool = new SoundPool('sounds/park_ult_shoot.mp3', 2);
 
+const poopTrapPool = new SoundPool('sounds/poop_trap.mp3', 3);
+const poopEatPool = new SoundPool('sounds/poop_eat.mp3', 3);
+
 let lastBounceTime = 0;
 
 function playClickSfx() { clickPool.play(bgm.volume); }
@@ -48,6 +51,8 @@ function playKimSpitSfx() { kimSpitPool.play(bgm.volume); }
 function playParkShootSfx() { parkShootPool.play(bgm.volume); }
 function playParkUltChargeSfx() { parkUltChargePool.play(bgm.volume); }
 function playParkUltShootSfx() { parkUltShootPool.play(bgm.volume); }
+function playPoopTrapSfx() { poopTrapPool.play(bgm.volume); }
+function playPoopEatSfx() { poopEatPool.play(bgm.volume); }
 
 function playBounceSfx() {
   const now = Date.now();
@@ -91,6 +96,7 @@ let shakeTimer = 0;
 let skillEffects = [];
 let floatingTexts = [];
 let projectiles = [];
+let landedPoops = [];
 
 let selectedP1Key = 'KIM';
 let selectedP2Key = 'GONG';
@@ -122,6 +128,7 @@ class Ball {
     this.vy = 0;
     this.isWinner = false;
 
+    // 김민채
     this.isEatable = false;
     this.eatableTimer = 0;
     this.isEating = false;
@@ -130,16 +137,24 @@ class Ball {
     this.eatingDmgTimer = 0;
     this.wallDebuffTimer = 0;
 
+    // 공병은
     this.isDashing = false;
     this.dashHitTarget = false;
     this.stunTimer = 0;
 
+    // 박지성
     this.isAiming = false;
     this.aimTimer = 0;
     this.aimTarget = null;
     this.isUltAim = false;
     this.eyeStacks = [];
     this.eyeDmgTimer = 0;
+
+    // 김티비
+    this.isFurryBurst = false;
+    this.furryBurstTimer = 0;
+    this.furryBurstTarget = null;
+    this.burstShotCount = 0;
   }
 
   init(charData) {
@@ -174,6 +189,11 @@ class Ball {
     this.eyeStacks = [];
     this.eyeDmgTimer = 0;
 
+    this.isFurryBurst = false;
+    this.furryBurstTimer = 0;
+    this.furryBurstTarget = null;
+    this.burstShotCount = 0;
+
     const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
     const randomAngle = Math.random() * Math.PI * 2;
     const baseSpeed = 0.9 * charSpeed;
@@ -207,6 +227,58 @@ class Ball {
     if (this.isEatable) {
       this.eatableTimer -= gameSpeed;
       if (this.eatableTimer <= 0) this.isEatable = false;
+    }
+
+    if (this.isFurryBurst && this.furryBurstTarget) {
+      this.furryBurstTimer -= gameSpeed;
+      this.vx = 0;
+      this.vy = 0;
+      shakeTimer = Math.max(shakeTimer, 4);
+
+      const colors = ['#ff007f', '#00ffff', '#ffff00', '#00ff00', '#ff7675', '#a29bfe'];
+      for (let i = 0; i < 2; i++) {
+        skillEffects.push({
+          type: 'AURA',
+          x: this.x + (Math.random() - 0.5) * 50,
+          y: this.y + (Math.random() - 0.5) * 50,
+          targetX: this.x,
+          targetY: this.y,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 15
+        });
+      }
+
+      if (Math.floor(this.furryBurstTimer) % 11 === 0 && this.burstShotCount < 9) {
+        this.burstShotCount++;
+        playParkShootSfx();
+
+        const angle = Math.atan2(this.furryBurstTarget.y - this.y, this.furryBurstTarget.x - this.x) + (Math.random() - 0.5) * 0.15;
+        const projSpeed = 12.0;
+
+        projectiles.push({
+          x: this.x,
+          y: this.y,
+          vx: Math.cos(angle) * projSpeed,
+          vy: Math.sin(angle) * projSpeed,
+          damage: Math.round(this.data.ult.damage / 9), // ★ 김티비 궁극기 데미지 연동 (총 9발로 나누어 적용)
+          target: this.furryBurstTarget,
+          color: colors[this.burstShotCount % colors.length],
+          isRainbowLaser: true,
+          life: 80
+        });
+
+        this.furryBurstTarget.vx = Math.cos(angle) * 4.2;
+        this.furryBurstTarget.vy = Math.sin(angle) * 4.2;
+      }
+
+      if (this.furryBurstTimer <= 0) {
+        this.isFurryBurst = false;
+        const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
+        const resumeAngle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(resumeAngle) * 0.9 * charSpeed;
+        this.vy = Math.sin(resumeAngle) * 0.9 * charSpeed;
+      }
+      return;
     }
 
     if (this.isAiming && this.aimTarget) {
@@ -283,7 +355,7 @@ class Ball {
             y: this.y,
             vx: Math.cos(angle) * projSpeed,
             vy: Math.sin(angle) * projSpeed,
-            damage: 25,
+            damage: this.data.basic.damage, // ★ 박지성 기본 스킬 데미지 연동
             target: this.aimTarget,
             color: this.data.color,
             isBullet: true,
@@ -305,8 +377,9 @@ class Ball {
 
       if (this.eatingDmgTimer >= 60) {
         this.eatingDmgTimer = 0;
-        applyDamage(target, 12);
-        addFloatingText(this.x, this.y - 20, '-12');
+        const eatDmg = this.data.ult.damage; // ★ 김민채 궁극기(먹방) 데미지 연동
+        applyDamage(target, eatDmg);
+        addFloatingText(this.x, this.y - 20, `-${eatDmg}`);
         shakeTimer = 8;
       }
 
@@ -317,7 +390,7 @@ class Ball {
         playKimSpitSfx();
 
         const angle = Math.random() * Math.PI * 2;
-        const launchSpeed = 8.5; 
+        const launchSpeed = 32.0;
         target.vx = Math.cos(angle) * launchSpeed;
         target.vy = Math.sin(angle) * launchSpeed;
 
@@ -326,6 +399,7 @@ class Ball {
         this.vy = (Math.random() < 0.5 ? 1 : -1) * mySpeed;
 
         target.wallDebuffTimer = 120;
+        shakeTimer = 16;
       }
       return;
     }
@@ -365,8 +439,9 @@ class Ball {
       const dist = Math.hypot(target.x - this.x, target.y - this.y);
       if (dist < this.radius + target.radius + 4) {
         this.dashHitTarget = true;
-        applyDamage(target, 20);
-        addFloatingText(target.x, target.y - 15, '-20');
+        const dashDmg = this.data.basic.damage; // ★ 공병은 기본 스킬(돌진) 데미지 연동
+        applyDamage(target, dashDmg);
+        addFloatingText(target.x, target.y - 15, `-${dashDmg}`);
         shakeTimer = 8;
 
         const knockAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -408,7 +483,7 @@ class Ball {
       }
     }
 
-    if (!p1.isEating && !p2.isEating && this.stunTimer <= 0 && !this.isAiming && this.skillCool < 100) {
+    if (!p1.isEating && !p2.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst && this.skillCool < 100) {
       this.skillCool += this.data.coolSpeed * gameSpeed;
       if (this.skillCool >= 100) {
         this.skillCool = 100;
@@ -430,22 +505,22 @@ class Ball {
         shakeTimer = 12;
       } else {
         this.ultCharge++;
-        shakeTimer = 5;
+        shakeTimer = 6;
 
         const dx = target.x - this.x;
         const dy = target.y - this.y;
         const angle = Math.atan2(dy, dx);
-        const projSpeed = 3.6;
+        const projSpeed = 6.5;
 
         projectiles.push({
           x: this.x,
           y: this.y,
           vx: Math.cos(angle) * projSpeed,
           vy: Math.sin(angle) * projSpeed,
-          damage: 18, // 18 데미지 적용
+          damage: this.data.basic.damage, // ★ 김민채 기본 스킬 데미지 연동
           target: target,
-          color: this.data.color,
-          isBullet: false,
+          color: '#ff7675',
+          isBL: true,
           life: 140
         });
       }
@@ -457,11 +532,11 @@ class Ball {
           type: 'INSANITY_WARN',
           x: ARENA_SIZE / 2,
           y: ARENA_SIZE / 2,
-          radius: 110,
+          radius: 101,
           life: 120,
           maxLife: 120,
           owner: this,
-          damage: 40
+          damage: this.data.ult.damage // ★ 공병은 궁극기(소파) 데미지 연동
         });
       } else {
         playGongSkillSfx();
@@ -488,6 +563,34 @@ class Ball {
       } else {
         this.ultCharge++;
         this.isUltAim = false;
+      }
+    } else if (this.data.basic.type === 'POOP_THROW') {
+      if (isUltReady) {
+        this.ultCharge = 0;
+        this.isFurryBurst = true;
+        this.furryBurstTimer = 110;
+        this.furryBurstTarget = target;
+        this.burstShotCount = 0;
+        shakeTimer = 18;
+      } else {
+        shakeTimer = 4;
+
+        const targetX = Math.random() * (ARENA_SIZE - 80) + 40;
+        const targetY = Math.random() * (ARENA_SIZE - 80) + 40;
+
+        projectiles.push({
+          type: 'POOP_FLYING',
+          startX: this.x,
+          startY: this.y,
+          x: this.x,
+          y: this.y,
+          targetX: targetX,
+          targetY: targetY,
+          progress: 0,
+          damage: this.data.basic.damage, // ★ 김티비 기본 스킬(똥) 데미지 연동
+          owner: this,
+          life: 100
+        });
       }
     }
   }
@@ -590,15 +693,22 @@ class Ball {
       ctx.strokeStyle = this.data.color;
       ctx.stroke();
 
-      const displayEmoji = this.isEating ? '🍽️' : this.data.emoji;
+      const displayEmoji = this.isEating ? '🍽️' : (this.isFurryBurst ? '🦊' : this.data.emoji);
 
       ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      const shakeX = this.stunTimer > 0 ? (Math.random() - 0.5) * 4 : 0;
-      const shakeY = this.stunTimer > 0 ? (Math.random() - 0.5) * 4 : 0;
+      const shakeX = (this.stunTimer > 0 || this.isFurryBurst) ? (Math.random() - 0.5) * 4 : 0;
+      const shakeY = (this.stunTimer > 0 || this.isFurryBurst) ? (Math.random() - 0.5) * 4 : 0;
       ctx.fillText(displayEmoji, this.x + shakeX, this.y + 1 + shakeY);
+    }
+
+    if (this.isFurryBurst) {
+      ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffc107';
+      ctx.fillText('✨SSR✨', this.x, this.y - this.radius - 8);
     }
 
     if (this.eyeStacks.length > 0 && this.hp > 0) {
@@ -734,8 +844,8 @@ function applyDamage(target, amount) {
   }
 }
 
-function addFloatingText(x, y, text) {
-  floatingTexts.push({ x, y, text, color: '#ff3344', alpha: 1.0 });
+function addFloatingText(x, y, text, color = '#ff3344') {
+  floatingTexts.push({ x, y, text, color, alpha: 1.0 });
 }
 
 function updateHUD() {
@@ -795,7 +905,7 @@ function drawHexagonFrame(hCtx, logicalW, logicalH, charData, scaleProgress) {
   const centerY = logicalH / 2 + 2;
   const radius = 45;
 
-  const labels = ['공격', '방어', '속도', '쿨감', '궁극', '유틸'];
+  const labels = ['공격', '방어', '속도', '공격속도', '궁극', '유틸'];
   const keys = ['atk', 'def', 'spd', 'cool', 'ult', 'utl'];
   const stats = charData.stats;
 
@@ -900,6 +1010,13 @@ function updateDictionaryUI(key) {
   document.getElementById('dict-basic-skill').innerText = `${data.basic.name} (DMG ${data.basic.damage})`;
   document.getElementById('dict-ult-skill').innerText = `${data.ult.name} (DMG ${data.ult.damage})`;
 
+  const dictCard = document.querySelector('.dict-card');
+  if (dictCard) {
+    dictCard.style.animation = 'none';
+    dictCard.offsetHeight;
+    dictCard.style.animation = 'slideInLeft 0.3s ease-out';
+  }
+
   animateHexagonChart(data);
 }
 
@@ -922,6 +1039,7 @@ function startCountdown() {
   skillEffects = [];
   floatingTexts = [];
   projectiles = [];
+  landedPoops = [];
   updateHUD();
 
   let count = 3;
@@ -963,7 +1081,7 @@ function hideOverlay() {
 }
 
 // =========================================================================
-// [6] 메인 애니메이션 루프
+// [6] 메인 루프
 // =========================================================================
 function loop() {
   ctx.save();
@@ -986,6 +1104,11 @@ function loop() {
   }
 
   if (gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GAMEOVER') {
+    if (p1.isFurryBurst || p2.isFurryBurst) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+    }
+
     p1.update(p2);
     p2.update(p1);
 
@@ -994,6 +1117,58 @@ function loop() {
         playBounceSfx();
       }
       updateHUD();
+    }
+
+    for (let i = landedPoops.length - 1; i >= 0; i--) {
+      const poop = landedPoops[i];
+      
+      ctx.font = 'bold 16px "NeoDunggeunmo", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('💩', poop.x, poop.y);
+
+      if (gameState === 'PLAYING') {
+        const enemy = poop.owner === p1 ? p2 : p1;
+        const owner = poop.owner;
+
+        const distEnemy = Math.hypot(enemy.x - poop.x, enemy.y - poop.y);
+        if (distEnemy < enemy.radius + 8) {
+          playPoopTrapSfx();
+          applyDamage(enemy, poop.damage);
+          addFloatingText(enemy.x, enemy.y - 15, `-${poop.damage}`);
+          shakeTimer = 10;
+
+          skillEffects.push({
+            type: 'MUSHROOM_CLOUD',
+            x: poop.x,
+            y: poop.y,
+            life: 30,
+            maxLife: 30
+          });
+
+          landedPoops.splice(i, 1);
+          continue;
+        }
+
+        const distOwner = Math.hypot(owner.x - poop.x, owner.y - poop.y);
+        if (distOwner < owner.radius + 8) {
+          playPoopEatSfx();
+          owner.hp = Math.min(owner.maxHp, owner.hp + 13);
+          owner.ultCharge = Math.min(owner.data.maxUltCharge, owner.ultCharge + 1);
+          addFloatingText(owner.x, owner.y - 15, '+13 HP', '#55efc4');
+
+          skillEffects.push({
+            type: 'MUSHROOM_CLOUD',
+            x: poop.x,
+            y: poop.y,
+            life: 30,
+            maxLife: 30
+          });
+
+          landedPoops.splice(i, 1);
+          continue;
+        }
+      }
     }
 
     for (let i = skillEffects.length - 1; i >= 0; i--) {
@@ -1006,6 +1181,44 @@ function loop() {
         ctx.fill();
         ef.life -= gameSpeed;
       } 
+      else if (ef.type === 'MUSHROOM_CLOUD') {
+        const progress = 1 - ef.life / ef.maxLife;
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 48 * progress + 8, 14 * progress + 4, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 100, 0, ${1 - progress})`;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        const stemH = 42 * progress;
+        ctx.fillStyle = `rgba(255, 87, 34, ${0.9 * (1 - progress)})`;
+        ctx.beginPath();
+        ctx.moveTo(-9 * (1 - progress), 0);
+        ctx.lineTo(9 * (1 - progress), 0);
+        ctx.lineTo(4 * (1 - progress), -stemH);
+        ctx.lineTo(-4 * (1 - progress), -stemH);
+        ctx.closePath();
+        ctx.fill();
+
+        const capY = -stemH;
+        const capR = 28 * Math.sin(progress * Math.PI);
+
+        ctx.fillStyle = `rgba(255, 52, 80, ${1 - progress})`;
+        ctx.beginPath();
+        ctx.arc(0, capY - 4, capR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = `rgba(255, 214, 0, ${1 - progress})`;
+        ctx.beginPath();
+        ctx.arc(-capR * 0.45, capY - 7, capR * 0.55, 0, Math.PI * 2);
+        ctx.arc(capR * 0.45, capY - 7, capR * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+        ef.life -= gameSpeed;
+      }
       else if (ef.type === 'DEATH_POP') {
         ef.x += ef.vx * gameSpeed;
         ef.y += ef.vy * gameSpeed;
@@ -1114,7 +1327,7 @@ function loop() {
               if (dist <= ef.radius + p.radius) {
                 applyDamage(p, ef.damage);
                 p.stunTimer = 60;
-                addFloatingText(p.x, p.y - 15, `-40`);
+                addFloatingText(p.x, p.y - 15, `-${ef.damage}`);
               }
             }
           });
@@ -1126,11 +1339,116 @@ function loop() {
 
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const proj = projectiles[i];
+
+      if (proj.type === 'POOP_FLYING') {
+        proj.progress += 0.035 * gameSpeed;
+        proj.x = proj.startX + (proj.targetX - proj.startX) * proj.progress;
+        proj.y = proj.startY + (proj.targetY - proj.startY) * proj.progress - Math.sin(proj.progress * Math.PI) * 35;
+
+        ctx.font = 'bold 16px "NeoDunggeunmo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💩', proj.x, proj.y);
+
+        if (proj.progress >= 1.0) {
+          landedPoops.push({
+            x: proj.targetX,
+            y: proj.targetY,
+            damage: proj.damage,
+            owner: proj.owner
+          });
+          projectiles.splice(i, 1);
+        }
+        continue;
+      }
+
       proj.x += proj.vx * gameSpeed;
       proj.y += proj.vy * gameSpeed;
       proj.life -= gameSpeed;
 
-      if (proj.isBullet) {
+      if (proj.isBL) {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        const blAngle = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(blAngle);
+
+        const grad = ctx.createLinearGradient(-38, 0, 15, 0);
+        grad.addColorStop(0, 'rgba(255, 118, 117, 0)');
+        grad.addColorStop(0.6, '#ff4757');
+        grad.addColorStop(1, '#ffffff');
+
+        ctx.beginPath();
+        ctx.moveTo(-38, 0);
+        ctx.lineTo(15, 0);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 9;
+        ctx.shadowColor = '#ff4757';
+        ctx.shadowBlur = 14;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(Date.now() / 80);
+        ctx.font = 'bold 18px "NeoDunggeunmo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💖', 0, 0);
+        ctx.restore();
+
+        ctx.font = 'bold 24px "NeoDunggeunmo", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ff4757';
+        ctx.shadowBlur = 12;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('BL', 0, 0);
+
+        ctx.restore();
+      }
+      else if (proj.isRainbowLaser) {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        const projAngle = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(projAngle);
+
+        const tailGrad = ctx.createLinearGradient(-30, 0, 8, 0);
+        tailGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        tailGrad.addColorStop(0.4, proj.color);
+        tailGrad.addColorStop(0.85, '#ffffff');
+        tailGrad.addColorStop(1, proj.color);
+
+        ctx.beginPath();
+        ctx.moveTo(-30, 0);
+        ctx.quadraticCurveTo(-12, -4, 8, 0);
+        ctx.quadraticCurveTo(-12, 4, -30, 0);
+        ctx.fillStyle = tailGrad;
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 14;
+        ctx.fill();
+
+        ctx.save();
+        ctx.rotate(Date.now() / 45);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -5);
+        ctx.lineTo(4, 0);
+        ctx.lineTo(0, 5);
+        ctx.lineTo(-4, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = proj.color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.restore();
+      } else if (proj.isBullet) {
         ctx.save();
         ctx.translate(proj.x, proj.y);
         const bulletAngle = Math.atan2(proj.vy, proj.vx);
@@ -1139,9 +1457,9 @@ function loop() {
         ctx.beginPath();
         ctx.moveTo(-16, 0);
         ctx.lineTo(-4, 0);
-        ctx.strokeStyle = '#ff3344';
+        ctx.strokeStyle = proj.color || '#ff3344';
         ctx.lineWidth = 3;
-        ctx.shadowColor = '#ff3344';
+        ctx.shadowColor = proj.color || '#ff3344';
         ctx.shadowBlur = 8;
         ctx.stroke();
 
@@ -1156,20 +1474,12 @@ function loop() {
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-4, -1, 7, 1);
-
         ctx.restore();
-      } else {
-        ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
-        ctx.fillStyle = proj.color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('BL', proj.x, proj.y);
       }
 
+      const hitMargin = proj.isBL ? 12 : 6;
       const dist = Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y);
-      if (dist < proj.target.radius + 6) {
+      if (dist < proj.target.radius + hitMargin) {
         applyDamage(proj.target, proj.damage);
         addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`);
         shakeTimer = 5;
