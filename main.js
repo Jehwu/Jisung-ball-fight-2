@@ -108,6 +108,10 @@ let currentDictKey = 'KIM';
 let dictAnimFrame = null;
 let animFrameId = null;
 
+// 고정 60 FPS 보정용 타임스탬프 변수
+let lastTime = performance.now();
+const fpsInterval = 1000 / 60; // 약 16.67ms
+
 let countdownStartTime = 0;
 
 function isDarkTheme() {
@@ -338,7 +342,6 @@ class Ball {
       this.vx = 0;
       this.vy = 0;
 
-      // ★ 박지성 궁극기 오라 및 차징 효과 색상 완전 연동 ★
       if (this.isUltAim) {
         shakeTimer = Math.max(shakeTimer, 2);
 
@@ -351,7 +354,7 @@ class Ball {
             y: this.y + Math.sin(auraAngle) * auraDist,
             targetX: this.x,
             targetY: this.y,
-            color: Math.random() < 0.5 ? this.color : '#ffffff', // 캐릭터 고유 색상 적용
+            color: Math.random() < 0.5 ? this.color : '#ffffff',
             life: 18
           });
         }
@@ -363,7 +366,7 @@ class Ball {
             y: this.y,
             radius: 8,
             maxRadius: 65,
-            color: this.color, // 캐릭터 고유 색상 적용
+            color: this.color,
             life: 20
           });
         }
@@ -381,7 +384,6 @@ class Ball {
           shakeTimer = 20;
           playParkUltShootSfx();
 
-          // ★ 레이저 빔 색상 완전 연동 ★
           skillEffects.push({
             type: 'LASER_BEAM',
             x1: this.x,
@@ -402,7 +404,9 @@ class Ball {
           playParkShootSfx();
 
           const angle = Math.atan2(this.aimTarget.y - this.y, this.aimTarget.x - this.x);
-          const projSpeed = 10.0;
+          
+          // ★ 박지성 기본 스킬 투사체 속도 +30% 버프 반영: 10.0 -> 13.0 ★
+          const projSpeed = 13.0;
 
           projectiles.push({
             x: this.x,
@@ -872,7 +876,6 @@ class Ball {
       });
     }
 
-    // ★ 박지성 조준 선 및 표적 타깃팅 색상 완전 연동 ★
     if (this.isAiming && this.aimTarget) {
       const aimAngle = Math.atan2(this.aimTarget.y - this.y, this.aimTarget.x - this.x);
       
@@ -1227,9 +1230,20 @@ function hideOverlay() {
 }
 
 // =========================================================================
-// [6] 메인 루프
+// [6] 메인 루프 (60 FPS 타임스텝 보정으로 클릭 시 배속 버그 완전 해결)
 // =========================================================================
-function loop() {
+function loop(now) {
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  animFrameId = requestAnimationFrame(loop);
+
+  if (!now) now = performance.now();
+  const elapsed = now - lastTime;
+
+  // 16.67ms (60 FPS) 미만일 경우 스킵하여 디스플레이 주사율 가속 버그 방지
+  if (elapsed < fpsInterval) return;
+
+  lastTime = now - (elapsed % fpsInterval);
+
   ctx.save();
 
   if (shakeTimer > 0) {
@@ -1792,9 +1806,6 @@ function loop() {
   }
 
   ctx.restore();
-
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  animFrameId = requestAnimationFrame(loop);
 }
 
 // =========================================================================
