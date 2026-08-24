@@ -12,6 +12,9 @@
   <div id="game-container" class="dark-theme">
     <!-- 1. 메인 화면 -->
     <div id="screen-main" class="screen active">
+      <!-- 우측 상단 패치노트 버튼 -->
+      <button id="btn-patch" class="btn-tech-patch">📜 패치노트</button>
+
       <h1 class="game-title">JS BALL BATTLE 2</h1>
       <p class="game-subtitle">SQUARE ARENA EDITION</p>
       <button id="btn-start" class="btn-tech">게임 시작</button>
@@ -37,7 +40,24 @@
       <button id="btn-back-settings" class="btn-tech secondary" style="margin-top: 16px;">뒤로가기</button>
     </div>
 
-    <!-- 3. 모드 선택 화면 -->
+    <!-- 3. 패치노트 화면 -->
+    <div id="screen-patch" class="screen">
+      <h2 class="screen-title">PATCH NOTES</h2>
+      <div class="patch-card">
+        <div class="patch-version">VER 2.1 BALANCE & MATCH UPDATE</div>
+        <ul class="patch-list">
+          <li><span class="badge buff">BUFF</span> <strong>🐽 김민채:</strong> BL 투척 속도 +20% (2.8 → 3.36)</li>
+          <li><span class="badge buff">BUFF</span> <strong>🎨 김가은:</strong> 컷 가르기 (15 → 17), 궁극기 (40 → 45)</li>
+          <li><span class="badge nerf">NERF</span> <strong>📺 김티비:</strong> 퍼리 버스트 (45 → 40)</li>
+          <li><span class="badge buff">BUFF</span> <strong>🗣️ 공병은:</strong> 버츄얼 인세니티 범위 +5% (101 → 106)</li>
+          <li><span class="badge sys">SYS</span> <strong>👁️ 박지성:</strong> 궁극기 이펙트/레이저/타겟팅 색상 완전 연동</li>
+          <li><span class="badge sys">SYS</span> <strong>👥 미러전:</strong> P2 색상 및 전용 스킬 이펙트 분리</li>
+        </ul>
+      </div>
+      <button id="btn-back-patch" class="btn-tech secondary" style="margin-top: 12px;">뒤로가기</button>
+    </div>
+
+    <!-- 4. 모드 선택 화면 -->
     <div id="screen-mode" class="screen">
       <h2 class="screen-title">MODE SELECT</h2>
       <button id="btn-mode-1v1" class="btn-tech">1 vs 1 클래식</button>
@@ -45,7 +65,7 @@
       <button id="btn-back-mode" class="btn-tech secondary">뒤로가기</button>
     </div>
 
-    <!-- 4. 캐릭터 선택 화면 -->
+    <!-- 5. 캐릭터 선택 화면 -->
     <div id="screen-char" class="screen">
       <h2 class="screen-title">CHARACTER SELECT</h2>
       
@@ -75,7 +95,7 @@
       <button id="btn-back-char" class="btn-tech secondary">뒤로가기</button>
     </div>
 
-    <!-- 5. 캐릭터 사전 화면 -->
+    <!-- 6. 캐릭터 사전 화면 -->
     <div id="screen-dict" class="screen">
       <h2 class="screen-title" style="margin-bottom: 6px;">CHARACTER BOOK</h2>
       
@@ -106,7 +126,7 @@
       <button id="btn-back-dict" class="btn-tech secondary" style="margin-top: 6px;">뒤로가기</button>
     </div>
 
-    <!-- 6. 인게임 화면 -->
+    <!-- 7. 인게임 화면 -->
     <div id="screen-game" class="screen">
       <div class="top-bar">
         <span class="mini-title">JS BALL BATTLE 2</span>
@@ -126,9 +146,7 @@
             <span id="p1-hp-text" class="hp-text">250/250</span>
           </div>
           <div class="bar-frame hp-frame"><div id="p1-hp-fill" class="bar-fill p1-hp-fill"></div></div>
-          <div class="bar-label">SKILL COOL</div>
           <div class="bar-frame skill-frame"><div id="p1-skill-fill" class="bar-fill p1-skill-fill" style="width: 0%;"></div></div>
-          <div class="bar-label ult-label">ULTIMATE GAUGE</div>
           <div class="bar-frame ult-frame"><div id="p1-ult-fill" class="bar-fill p1-ult-fill" style="width: 0%;"></div></div>
         </div>
 
@@ -138,9 +156,7 @@
             <span id="p2-hp-text" class="hp-text">250/250</span>
           </div>
           <div class="bar-frame hp-frame"><div id="p2-hp-fill" class="bar-fill p2-hp-fill"></div></div>
-          <div class="bar-label" style="text-align: right;">SKILL COOL</div>
           <div class="bar-frame skill-frame"><div id="p2-skill-fill" class="bar-fill p2-skill-fill" style="width: 0%;"></div></div>
-          <div class="bar-label ult-label" style="text-align: right;">ULTIMATE GAUGE</div>
           <div class="bar-frame ult-frame"><div id="p2-ult-fill" class="bar-fill p2-ult-fill" style="width: 0%;"></div></div>
         </div>
       </div>

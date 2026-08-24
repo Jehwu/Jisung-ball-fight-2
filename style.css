@@ -144,7 +144,7 @@ body {
 .game-subtitle {
   font-size: 10px;
   color: var(--text-sub);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   font-weight: 800;
   animation: slideInRight 0.35s ease-out;
 }
@@ -187,6 +187,26 @@ body {
   margin-top: 2px;
 }
 
+/* 우측 상단 패치노트 전용 버튼 스타일 */
+.btn-tech-patch {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 15;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-tech-patch:hover {
+  border-color: #ff3344;
+}
+
 .setting-card {
   width: 100%;
   background: var(--bg-card);
@@ -212,6 +232,57 @@ body {
 }
 
 #bgm-volume { width: 80px; height: 10px; accent-color: #ff3344; cursor: pointer; }
+
+/* 패치노트 카드 및 태그 전용 스타일 */
+.patch-card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.patch-version {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ff3344;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.patch-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.patch-list li {
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+.patch-list strong {
+  color: #ffc107;
+}
+
+.badge {
+  font-size: 8px;
+  font-weight: 900;
+  padding: 1px 4px;
+  margin-right: 2px;
+  display: inline-block;
+}
+
+.badge.buff { background: #00b894; color: #ffffff; }
+.badge.nerf { background: #d63031; color: #ffffff; }
+.badge.sys  { background: #0984e3; color: #ffffff; }
+.badge.adj  { background: #fdcb6e; color: #000000; }
 
 .char-select-section { width: 100%; margin-bottom: 12px; }
 .section-label { font-size: 10px; font-weight: 900; margin-bottom: 4px; }
@@ -318,7 +389,6 @@ canvas#gameCanvas {
   margin: 0 auto;
 }
 
-/* HUD 체력바 밀착 및 두께 강화 구조 */
 .hud {
   width: 100%;
   flex: 1;
@@ -334,7 +404,6 @@ canvas#gameCanvas {
 .player-name { font-size: 10px; font-weight: 900; }
 .hp-text { font-size: 9px; font-weight: 800; color: var(--text-sub); font-family: monospace; }
 
-/* 체력바 두께 대폭 증가 (14px) 및 스킬바/궁바 틈 없이 연결 */
 .bar-frame { width: 100%; background: var(--bg-main); border: 1px solid var(--border-color); position: relative; overflow: hidden; }
 .hp-frame { height: 14px; border-bottom: none; }
 .skill-frame { height: 4px; border-bottom: none; }
@@ -347,8 +416,6 @@ canvas#gameCanvas {
 .p2-skill-fill { background: #00d2d3; }
 .p1-ult-fill { background: linear-gradient(90deg, #ffc107, #ff9f43); }
 .p2-ult-fill { background: linear-gradient(90deg, #a55eea, #45aaf2); }
-
-.bar-label { display: none; } /* 공간 차지 없애고 직관적인 체력바 통합 바 */
 
 #overlay-msg {
   position: absolute;

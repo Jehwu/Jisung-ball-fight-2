@@ -106,6 +106,7 @@ let selectedP1Key = 'KIM';
 let selectedP2Key = 'GONG';
 let currentDictKey = 'KIM';
 let dictAnimFrame = null;
+let animFrameId = null;
 
 let countdownStartTime = 0;
 
@@ -139,6 +140,7 @@ class Ball {
     this.vx = 0;
     this.vy = 0;
     this.isWinner = false;
+    this.color = '#ffffff';
 
     this.isEatable = false;
     this.eatableTimer = 0;
@@ -168,8 +170,9 @@ class Ball {
     this.scrollDmgTimer = 0;
   }
 
-  init(charData) {
+  init(charData, isP2 = false, isMirror = false) {
     this.data = charData;
+    this.color = (isP2 && isMirror && charData.altColor) ? charData.altColor : charData.color;
     this.maxHp = charData.hp || 250;
     this.reset();
   }
@@ -208,7 +211,7 @@ class Ball {
     this.scrollEffectTimer = 0;
     this.scrollDmgTimer = 0;
 
-    const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
+    const charSpeed = this.data ? (this.data.speed || 1.2) : 1.2;
     const randomAngle = Math.random() * Math.PI * 2;
     const baseSpeed = 0.9 * charSpeed;
     this.vx = Math.cos(randomAngle) * baseSpeed;
@@ -268,6 +271,14 @@ class Ball {
           }
         }
       }
+
+      if (this.scrollEffectTimer === 0) {
+        const charSpeed = this.data ? (this.data.speed || 1.2) : 1.2;
+        const randAngle = Math.random() * Math.PI * 2;
+        const baseSpd = 0.9 * charSpeed;
+        this.vx = Math.cos(randAngle) * baseSpd;
+        this.vy = Math.sin(randAngle) * baseSpd;
+      }
     }
 
     if (this.isFurryBurst && this.furryBurstTarget) {
@@ -289,7 +300,7 @@ class Ball {
         });
       }
 
-      if (Math.floor(this.furryBurstTimer) % 11 === 0 && this.burstShotCount < 9) {
+      if (Math.floor(this.furryBurstTimer) % 12 === 0 && this.burstShotCount < 8) {
         this.burstShotCount++;
         playParkShootSfx();
 
@@ -314,7 +325,7 @@ class Ball {
 
       if (this.furryBurstTimer <= 0) {
         this.isFurryBurst = false;
-        const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
+        const charSpeed = this.data ? (this.data.speed || 1.2) : 1.2;
         const resumeAngle = Math.random() * Math.PI * 2;
         this.vx = Math.cos(resumeAngle) * 0.9 * charSpeed;
         this.vy = Math.sin(resumeAngle) * 0.9 * charSpeed;
@@ -327,6 +338,7 @@ class Ball {
       this.vx = 0;
       this.vy = 0;
 
+      // ★ 박지성 궁극기 오라 및 차징 효과 색상 완전 연동 ★
       if (this.isUltAim) {
         shakeTimer = Math.max(shakeTimer, 2);
 
@@ -339,7 +351,7 @@ class Ball {
             y: this.y + Math.sin(auraAngle) * auraDist,
             targetX: this.x,
             targetY: this.y,
-            color: Math.random() < 0.5 ? '#10ac84' : '#55efc4',
+            color: Math.random() < 0.5 ? this.color : '#ffffff', // 캐릭터 고유 색상 적용
             life: 18
           });
         }
@@ -351,7 +363,7 @@ class Ball {
             y: this.y,
             radius: 8,
             maxRadius: 65,
-            color: '#10ac84',
+            color: this.color, // 캐릭터 고유 색상 적용
             life: 20
           });
         }
@@ -360,7 +372,7 @@ class Ball {
       if (this.aimTimer <= 0) {
         this.isAiming = false;
         
-        const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
+        const charSpeed = this.data ? (this.data.speed || 1.2) : 1.2;
         const resumeAngle = Math.random() * Math.PI * 2;
         this.vx = Math.cos(resumeAngle) * 0.9 * charSpeed;
         this.vy = Math.sin(resumeAngle) * 0.9 * charSpeed;
@@ -369,13 +381,14 @@ class Ball {
           shakeTimer = 20;
           playParkUltShootSfx();
 
+          // ★ 레이저 빔 색상 완전 연동 ★
           skillEffects.push({
             type: 'LASER_BEAM',
             x1: this.x,
             y1: this.y,
             x2: this.aimTarget.x,
             y2: this.aimTarget.y,
-            color: '#10ac84',
+            color: this.color,
             life: 28
           });
 
@@ -398,7 +411,7 @@ class Ball {
             vy: Math.sin(angle) * projSpeed,
             damage: 23,
             target: this.aimTarget,
-            color: this.data.color,
+            color: this.color,
             isBullet: true,
             life: 100
           });
@@ -407,7 +420,6 @@ class Ball {
       return;
     }
 
-    // ★ 김민채 170KG 먹방 소용돌이 흡수 이펙트 강화 ★
     if (this.isEating) {
       this.eatingTimer -= 1;
       this.eatingDmgTimer += 1;
@@ -417,7 +429,6 @@ class Ball {
       target.vx = 0;
       target.vy = 0;
 
-      // 강력한 블랙홀 빨아들이기용 소용돌이 파티클 생성
       for (let k = 0; k < 3; k++) {
         const spiralAngle = Math.random() * Math.PI * 2;
         const spiralDist = Math.random() * 45 + 15;
@@ -427,7 +438,7 @@ class Ball {
           y: this.y + Math.sin(spiralAngle) * spiralDist,
           targetX: this.x,
           targetY: this.y,
-          color: Math.random() < 0.5 ? '#ff7675' : '#e84393',
+          color: Math.random() < 0.5 ? this.color : '#e84393',
           life: 16
         });
       }
@@ -450,14 +461,13 @@ class Ball {
         target.vx = Math.cos(angle) * launchSpeed;
         target.vy = Math.sin(angle) * launchSpeed;
 
-        const mySpeed = (this.data ? this.data.speed : 1.0) * 0.9;
+        const mySpeed = (this.data ? this.data.speed : 1.2) * 0.9;
         this.vx = (Math.random() < 0.5 ? 1 : -1) * mySpeed;
         this.vy = (Math.random() < 0.5 ? 1 : -1) * mySpeed;
 
         target.wallDebuffTimer = 120;
         shakeTimer = 20;
 
-        // 방출 시 묵직한 고기/파티클 폭발 효과 추가
         for (let k = 0; k < 16; k++) {
           const pAngle = Math.random() * Math.PI * 2;
           const pSpd = Math.random() * 8 + 3;
@@ -468,7 +478,7 @@ class Ball {
             vx: Math.cos(pAngle) * pSpd,
             vy: Math.sin(pAngle) * pSpd,
             radius: Math.random() * 5 + 2,
-            color: '#ff7675',
+            color: this.color,
             life: 20,
             maxLife: 20
           });
@@ -479,7 +489,6 @@ class Ball {
 
     if (this.isEaten) return;
 
-    // ★ 공병은 불만하지 돌진: 흙먼지 튀김 & 속도감 강화 ★
     if (this.isDashing) {
       let currentAngle = Math.atan2(this.vy, this.vx);
       let targetAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -490,20 +499,17 @@ class Ball {
       
       currentAngle += diff * 0.003;
 
-      const dashSpd = 4.2; // 속도감 대폭 강화
+      const dashSpd = 4.2;
       this.vx = Math.cos(currentAngle) * dashSpd;
       this.vy = Math.sin(currentAngle) * dashSpd;
 
-      // 돌진 반대 방향으로 자욱한 흙먼지 파티클 배출
       for (let d = 0; d < 2; d++) {
-        const backAngle = currentAngle + Math.PI + (Math.random() - 0.5) * 0.6;
-        const dustSpd = Math.random() * 2 + 1;
         skillEffects.push({
           type: 'DUST',
           x: this.x - Math.cos(currentAngle) * (this.radius - 2),
           y: this.y - Math.sin(currentAngle) * (this.radius - 2),
           radius: Math.random() * 4 + 2,
-          color: Math.random() < 0.6 ? '#8a8f9d' : '#a4b0be', // 리얼한 흙먼지 색상
+          color: Math.random() < 0.6 ? '#8a8f9d' : '#a4b0be',
           life: 18
         });
       }
@@ -511,6 +517,32 @@ class Ball {
 
     this.x += this.vx;
     this.y += this.vy;
+
+    if (!this.isEaten && !this.isEating && !this.isAiming && !this.isFurryBurst && this.stunTimer <= 0) {
+      const charSpeed = this.data ? this.data.speed : 1.2;
+      const baseSpd = 0.9 * charSpeed;
+      const minSpd = baseSpd * 0.5;
+      const maxSpd = baseSpd * 1.5;
+
+      let currentSpd = Math.hypot(this.vx, this.vy);
+
+      if (currentSpd < 0.001) {
+        const randA = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(randA) * minSpd;
+        this.vy = Math.sin(randA) * minSpd;
+        currentSpd = minSpd;
+      }
+
+      if (currentSpd < minSpd) {
+        const scale = minSpd / currentSpd;
+        this.vx *= scale;
+        this.vy *= scale;
+      } else if (currentSpd > maxSpd && !this.isDashing && this.wallDebuffTimer <= 0) {
+        const scale = maxSpd / currentSpd;
+        this.vx *= scale;
+        this.vy *= scale;
+      }
+    }
 
     if (this.isDashing && !this.dashHitTarget) {
       const dist = Math.hypot(target.x - this.x, target.y - this.y);
@@ -534,7 +566,7 @@ class Ball {
 
     if (hitWall && this.isDashing) {
       this.isDashing = false;
-      const normalSpd = (this.data ? this.data.speed : 1.0) * 0.9;
+      const normalSpd = (this.data ? this.data.speed : 1.2) * 0.9;
       const curSpd = Math.hypot(this.vx, this.vy) || 1;
       this.vx = (this.vx / curSpd) * normalSpd;
       this.vy = (this.vy / curSpd) * normalSpd;
@@ -586,7 +618,7 @@ class Ball {
         const dx = target.x - this.x;
         const dy = target.y - this.y;
         const angle = Math.atan2(dy, dx);
-        const projSpeed = 2.8;
+        const projSpeed = 3.36;
 
         projectiles.push({
           x: this.x,
@@ -595,7 +627,7 @@ class Ball {
           vy: Math.sin(angle) * projSpeed,
           damage: 15,
           target: target,
-          color: this.data.color,
+          color: this.color,
           isBL: true,
           life: 140
         });
@@ -604,12 +636,12 @@ class Ball {
       if (isUltReady) {
         this.ultCharge = 0;
         shakeTimer = 10;
-        // ★ 공병은 궁극기: 기존 강렬한 빨간색 경고 구역으로 원복 ★
+        
         skillEffects.push({
           type: 'INSANITY_WARN',
           x: ARENA_SIZE / 2,
           y: ARENA_SIZE / 2,
-          radius: 101,
+          radius: 106,
           life: 120,
           maxLife: 120,
           owner: this,
@@ -681,6 +713,7 @@ class Ball {
 
         skillEffects.push({
           type: 'WEBTOON_SCROLL_UI',
+          color: this.color,
           life: 300,
           maxLife: 300
         });
@@ -689,20 +722,21 @@ class Ball {
         shakeTimer = 12;
         playGaeunLineSfx();
 
-        const midX = (this.x + target.x) / 2;
-        const midY = (this.y + target.y) / 2;
-        const angle = Math.atan2(target.y - this.y, target.x - this.x) + Math.PI / 2;
+        const randX = Math.random() * (ARENA_SIZE - 60) + 30;
+        const randY = Math.random() * (ARENA_SIZE - 60) + 30;
+        const randAngle = Math.random() * Math.PI * 2;
         const len = 500;
 
         skillEffects.push({
           type: 'CUT_LINE',
-          x1: midX - Math.cos(angle) * len,
-          y1: midY - Math.sin(angle) * len,
-          x2: midX + Math.cos(angle) * len,
-          y2: midY + Math.sin(angle) * len,
+          x1: randX - Math.cos(randAngle) * len,
+          y1: randY - Math.sin(randAngle) * len,
+          x2: randX + Math.cos(randAngle) * len,
+          y2: randY + Math.sin(randAngle) * len,
           owner: this,
           target: target,
-          damage: 15,
+          color: this.color,
+          damage: 17,
           life: 240,
           maxLife: 240,
           triggered: false
@@ -743,9 +777,9 @@ class Ball {
       ctx.lineWidth = 1.5;
     } else {
       ctx.setLineDash([]);
-      ctx.strokeStyle = this.data ? this.data.color : defaultColor;
+      ctx.strokeStyle = this.color;
       ctx.lineWidth = 2.5;
-      ctx.shadowColor = this.data ? this.data.color : defaultColor;
+      ctx.shadowColor = this.color;
       ctx.shadowBlur = 6;
     }
     ctx.moveTo(x1, y1);
@@ -767,7 +801,7 @@ class Ball {
       y2 - headLength * pulseScale * Math.sin(displayAngle + Math.PI / 6)
     );
     ctx.closePath();
-    ctx.fillStyle = isLocked ? (this.data ? this.data.color : defaultColor) : defaultDimColor;
+    ctx.fillStyle = isLocked ? this.color : defaultDimColor;
     ctx.fill();
 
     ctx.restore();
@@ -806,7 +840,7 @@ class Ball {
       ctx.fillStyle = '#12141d';
       ctx.fill();
       ctx.lineWidth = 3;
-      ctx.strokeStyle = this.data.color;
+      ctx.strokeStyle = this.color;
       ctx.stroke();
 
       const displayEmoji = this.isEating ? '🍽️' : (this.isFurryBurst ? '🦊' : this.data.emoji);
@@ -838,6 +872,7 @@ class Ball {
       });
     }
 
+    // ★ 박지성 조준 선 및 표적 타깃팅 색상 완전 연동 ★
     if (this.isAiming && this.aimTarget) {
       const aimAngle = Math.atan2(this.aimTarget.y - this.y, this.aimTarget.x - this.x);
       
@@ -847,7 +882,7 @@ class Ball {
 
       ctx.fillStyle = '#2f3542';
       ctx.fillRect(10, -4, 26, 8);
-      ctx.fillStyle = this.isUltAim ? '#10ac84' : '#ff3344';
+      ctx.fillStyle = this.isUltAim ? this.color : '#ff3344';
       ctx.fillRect(16, -8, 10, 4);
       ctx.fillStyle = '#ff4757';
       ctx.fillRect(36, -3, 5, 6);
@@ -858,7 +893,7 @@ class Ball {
       ctx.beginPath();
       ctx.moveTo(this.x, this.y);
       ctx.lineTo(this.aimTarget.x, this.aimTarget.y);
-      ctx.strokeStyle = this.isUltAim ? 'rgba(16, 172, 132, 0.6)' : 'rgba(255, 51, 68, 0.5)';
+      ctx.strokeStyle = this.isUltAim ? this.color : 'rgba(255, 51, 68, 0.5)';
       ctx.lineWidth = this.isUltAim ? 2 : 1.5;
       ctx.setLineDash([4, 4]);
       ctx.stroke();
@@ -869,7 +904,7 @@ class Ball {
       
       const pulse = 1 + Math.sin(Date.now() / 50) * 0.15;
       const crossRadius = (this.aimTarget.radius + 12) * pulse;
-      const color = this.isUltAim ? '#10ac84' : '#ff3344';
+      const color = this.isUltAim ? this.color : '#ff3344';
 
       ctx.strokeStyle = color;
       ctx.lineWidth = this.isUltAim ? 3 : 2;
@@ -893,8 +928,8 @@ class Ball {
 
       ctx.beginPath();
       ctx.moveTo(-lineEnd, 0); ctx.lineTo(-lineStart, 0);
-      ctx.moveTo(lineStart, 0); ctx.lineTo(lineEnd, 0);
       ctx.moveTo(0, -lineEnd); ctx.lineTo(0, -lineStart);
+      ctx.moveTo(lineStart, 0); ctx.lineTo(lineEnd, 0);
       ctx.moveTo(0, lineStart); ctx.lineTo(0, lineEnd);
       ctx.stroke();
 
@@ -939,7 +974,7 @@ function triggerDeathExplosion(ball) {
       vx: Math.cos(angle) * spd,
       vy: Math.sin(angle) * spd,
       radius: Math.random() * 5 + 3,
-      color: ball.data ? ball.data.color : '#ff3344',
+      color: ball.color || '#ff3344',
       life: 28,
       maxLife: 28
     });
@@ -1130,8 +1165,10 @@ function updateDictionaryUI(key) {
 }
 
 function startBattle() {
-  p1.init(CHAR_DB[selectedP1Key]);
-  p2.init(CHAR_DB[selectedP2Key]);
+  const isMirrorMatch = (selectedP1Key === selectedP2Key);
+
+  p1.init(CHAR_DB[selectedP1Key], false, false);
+  p2.init(CHAR_DB[selectedP2Key], true, isMirrorMatch);
 
   document.getElementById('p1-name-display').innerText = `${p1.data.emoji} ${p1.data.name}`;
   document.getElementById('p2-name-display').innerText = `${p2.data.emoji} ${p2.data.name}`;
@@ -1303,9 +1340,9 @@ function loop() {
         ctx.beginPath();
         ctx.moveTo(ef.x1, ef.y1);
         ctx.lineTo(ef.x2, ef.y2);
-        ctx.strokeStyle = '#e84393';
+        ctx.strokeStyle = ef.color || '#e84393';
         ctx.lineWidth = 4;
-        ctx.shadowColor = '#e84393';
+        ctx.shadowColor = ef.color || '#e84393';
         ctx.shadowBlur = 12;
         ctx.stroke();
 
@@ -1325,7 +1362,7 @@ function loop() {
             x: px + (Math.random() - 0.5) * 8,
             y: py + (Math.random() - 0.5) * 8,
             radius: Math.random() * 3 + 1.5,
-            color: '#fd79a8',
+            color: ef.color || '#fd79a8',
             life: 12
           });
         }
@@ -1355,7 +1392,7 @@ function loop() {
                 vx: Math.cos(pAngle) * pSpd,
                 vy: Math.sin(pAngle) * pSpd,
                 radius: Math.random() * 4 + 2,
-                color: Math.random() < 0.5 ? '#e84393' : '#2d3436',
+                color: Math.random() < 0.5 ? (ef.color || '#e84393') : '#2d3436',
                 life: 24,
                 maxLife: 24
               });
@@ -1367,7 +1404,7 @@ function loop() {
       else if (ef.type === 'WEBTOON_SCROLL_UI') {
         const offset = (Date.now() / 2.5) % 40;
         ctx.save();
-        ctx.strokeStyle = 'rgba(232, 67, 147, 0.28)';
+        ctx.strokeStyle = ef.color ? (ef.color + '44') : 'rgba(232, 67, 147, 0.28)';
         ctx.lineWidth = 2;
         ctx.setLineDash([14, 8]);
         for (let y = -40 + offset; y < ARENA_SIZE; y += 40) {
@@ -1377,7 +1414,7 @@ function loop() {
           ctx.stroke();
         }
 
-        ctx.fillStyle = 'rgba(232, 67, 147, 0.18)';
+        ctx.fillStyle = ef.color ? (ef.color + '33') : 'rgba(232, 67, 147, 0.18)';
         ctx.font = 'bold 24px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('▼ SCROLL ▼', ARENA_SIZE / 2, (offset * 3) % ARENA_SIZE);
@@ -1475,12 +1512,10 @@ function loop() {
 
         ef.life -= 1;
       }
-      // ★ 공병은 궁극기: 빨간색 원형 차오르는 경고 연출 원복 ★
       else if (ef.type === 'INSANITY_WARN') {
         const progress = 1 - ef.life / ef.maxLife;
 
         ctx.save();
-        // 외곽 실선 빨간 테두리
         ctx.beginPath();
         ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 51, 68, 0.15)';
@@ -1491,13 +1526,11 @@ function loop() {
         ctx.shadowBlur = 8;
         ctx.stroke();
 
-        // 안쪽에서 차오르는 붉은 충전 영역
         ctx.beginPath();
         ctx.arc(ef.x, ef.y, ef.radius * progress, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 51, 68, 0.4)';
         ctx.fill();
 
-        // ⚠️ DANGER 경고 표시
         if (Math.floor(Date.now() / 150) % 2 === 0) {
           ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
           ctx.fillStyle = '#ff3344';
@@ -1525,18 +1558,15 @@ function loop() {
           });
         }
       } 
-      // ★ 공병은 궁극기 소파 낙하 & 대형 충격파 폭발 연출 ★
       else if (ef.type === 'SOFA_FALL') {
         const progress = 1 - ef.life / ef.maxLife;
         ef.currentY = -80 + (ef.targetY + 80) * Math.pow(progress, 2.5);
 
-        // 낙하하는 소파 잔상 궤적
         ctx.save();
         ctx.font = 'bold 58px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // 화염/속도선 잔상
         ctx.fillStyle = 'rgba(255, 87, 34, 0.4)';
         ctx.fillText('🛋️', ef.x, ef.currentY - 15);
         ctx.fillStyle = '#ffffff';
@@ -1545,15 +1575,12 @@ function loop() {
 
         ef.life -= 1;
 
-        // 착지 순간 대형 폭발
         if (ef.life <= 0) {
-          shakeTimer = 28; // 화끈한 화면 흔들림
+          shakeTimer = 28;
 
-          // 착지 지점 대형 폭발 링
           skillEffects.push({ type: 'DUST', x: ef.x, y: ef.y, radius: 110, color: 'rgba(255, 51, 68, 0.4)', life: 12 });
           skillEffects.push({ type: 'DUST', x: ef.x, y: ef.y, radius: 80, color: 'rgba(255, 160, 0, 0.6)', life: 16 });
 
-          // 360도 방사형 파파팍 파티클 폭발
           for (let p = 0; p < 24; p++) {
             const expAngle = Math.random() * Math.PI * 2;
             const expSpd = Math.random() * 8 + 3;
@@ -1623,7 +1650,7 @@ function loop() {
 
         const grad = ctx.createLinearGradient(-45, 0, 20, 0);
         grad.addColorStop(0, 'rgba(255, 118, 117, 0)');
-        grad.addColorStop(0.5, '#ff4757');
+        grad.addColorStop(0.5, proj.color || '#ff4757');
         grad.addColorStop(1, '#ffffff');
 
         ctx.beginPath();
@@ -1631,7 +1658,7 @@ function loop() {
         ctx.lineTo(20, 0);
         ctx.strokeStyle = grad;
         ctx.lineWidth = 11;
-        ctx.shadowColor = '#ff4757';
+        ctx.shadowColor = proj.color || '#ff4757';
         ctx.shadowBlur = 18;
         ctx.stroke();
 
@@ -1645,7 +1672,7 @@ function loop() {
 
         ctx.font = 'bold 26px "NeoDunggeunmo", sans-serif';
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#ff4757';
+        ctx.shadowColor = proj.color || '#ff4757';
         ctx.shadowBlur = 14;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -1659,7 +1686,7 @@ function loop() {
             x: proj.x - proj.vx * 2,
             y: proj.y - proj.vy * 2,
             radius: Math.random() * 3.5 + 1.5,
-            color: '#ff7675',
+            color: proj.color || '#ff7675',
             life: 10
           });
         }
@@ -1765,7 +1792,9 @@ function loop() {
   }
 
   ctx.restore();
-  requestAnimationFrame(loop);
+
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  animFrameId = requestAnimationFrame(loop);
 }
 
 // =========================================================================
@@ -1790,6 +1819,10 @@ document.getElementById('btn-dict').addEventListener('click', () => {
   showScreen('screen-dict');
   updateDictionaryUI(currentDictKey);
 });
+
+document.getElementById('btn-patch').addEventListener('click', () => showScreen('screen-patch'));
+document.getElementById('btn-back-patch').addEventListener('click', () => showScreen('screen-main'));
+
 document.getElementById('btn-settings').addEventListener('click', () => showScreen('screen-settings'));
 document.getElementById('btn-theme-settings').addEventListener('click', toggleTheme);
 
@@ -1830,4 +1863,5 @@ document.querySelectorAll('#p2-char-grid .char-card').forEach(card => {
   });
 });
 
-requestAnimationFrame(loop);
+if (animFrameId) cancelAnimationFrame(animFrameId);
+animFrameId = requestAnimationFrame(loop);
