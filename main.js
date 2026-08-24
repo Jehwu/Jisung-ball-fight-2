@@ -33,13 +33,15 @@ const sofaDropPool = new SoundPool('sounds/sofa_drop.mp3', 3);
 const kimEatPool = new SoundPool('sounds/kim_eat.mp3', 3);
 const kimSpitPool = new SoundPool('sounds/kim_spit.mp3', 3);
 const bouncePool = new SoundPool('sounds/bounce.mp3', 6);
-
 const parkShootPool = new SoundPool('sounds/park_shoot.mp3', 3);
 const parkUltChargePool = new SoundPool('sounds/park_ult_charge.mp3', 2);
 const parkUltShootPool = new SoundPool('sounds/park_ult_shoot.mp3', 2);
-
 const poopTrapPool = new SoundPool('sounds/poop_trap.mp3', 3);
 const poopEatPool = new SoundPool('sounds/poop_eat.mp3', 3);
+
+const gaeunLinePool = new SoundPool('sounds/gaeun_line.mp3', 3);
+const gaeunCutPool = new SoundPool('sounds/gaeun_cut.mp3', 3);
+const gaeunUltPool = new SoundPool('sounds/gaeun_ult.mp3', 2);
 
 let lastBounceTime = 0;
 
@@ -53,6 +55,10 @@ function playParkUltChargeSfx() { parkUltChargePool.play(bgm.volume); }
 function playParkUltShootSfx() { parkUltShootPool.play(bgm.volume); }
 function playPoopTrapSfx() { poopTrapPool.play(bgm.volume); }
 function playPoopEatSfx() { poopEatPool.play(bgm.volume); }
+
+function playGaeunLineSfx() { gaeunLinePool.play(bgm.volume); }
+function playGaeunCutSfx() { gaeunCutPool.play(bgm.volume); }
+function playGaeunUltSfx() { gaeunUltPool.play(bgm.volume); }
 
 function playBounceSfx() {
   const now = Date.now();
@@ -79,7 +85,6 @@ function stopBGM() {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const overlayMsg = document.getElementById('overlay-msg');
-const btnSpeed = document.getElementById('btn-speed');
 
 const ARENA_SIZE = 300;
 const dpr = Math.max(window.devicePixelRatio || 1, 2);
@@ -91,7 +96,6 @@ canvas.style.height = ARENA_SIZE + 'px';
 ctx.scale(dpr, dpr);
 
 let gameState = 'IDLE';
-let gameSpeed = 1.0;
 let shakeTimer = 0;
 let skillEffects = [];
 let floatingTexts = [];
@@ -108,6 +112,14 @@ let countdownStartTime = 0;
 function isDarkTheme() {
   const container = document.getElementById('game-container');
   return container ? container.classList.contains('dark-theme') : true;
+}
+
+function distToSegment(p, v, w) {
+  const l2 = (w.x - v.x) ** 2 + (w.y - v.y) ** 2;
+  if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+  let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
 }
 
 // =========================================================================
@@ -128,7 +140,6 @@ class Ball {
     this.vy = 0;
     this.isWinner = false;
 
-    // 김민채
     this.isEatable = false;
     this.eatableTimer = 0;
     this.isEating = false;
@@ -137,12 +148,10 @@ class Ball {
     this.eatingDmgTimer = 0;
     this.wallDebuffTimer = 0;
 
-    // 공병은
     this.isDashing = false;
     this.dashHitTarget = false;
     this.stunTimer = 0;
 
-    // 박지성
     this.isAiming = false;
     this.aimTimer = 0;
     this.aimTarget = null;
@@ -150,11 +159,13 @@ class Ball {
     this.eyeStacks = [];
     this.eyeDmgTimer = 0;
 
-    // 김티비
     this.isFurryBurst = false;
     this.furryBurstTimer = 0;
     this.furryBurstTarget = null;
     this.burstShotCount = 0;
+
+    this.scrollEffectTimer = 0;
+    this.scrollDmgTimer = 0;
   }
 
   init(charData) {
@@ -194,6 +205,9 @@ class Ball {
     this.furryBurstTarget = null;
     this.burstShotCount = 0;
 
+    this.scrollEffectTimer = 0;
+    this.scrollDmgTimer = 0;
+
     const charSpeed = this.data ? (this.data.speed || 1.0) : 1.0;
     const randomAngle = Math.random() * Math.PI * 2;
     const baseSpeed = 0.9 * charSpeed;
@@ -206,7 +220,7 @@ class Ball {
     if (gameState !== 'PLAYING') return;
 
     if (this.eyeStacks.length > 0 && this.hp > 0) {
-      this.eyeDmgTimer += gameSpeed;
+      this.eyeDmgTimer += 1;
       if (this.eyeDmgTimer >= 60) {
         this.eyeDmgTimer = 0;
         const totalDmg = this.eyeStacks.length * 3;
@@ -216,21 +230,48 @@ class Ball {
     }
 
     if (this.stunTimer > 0) {
-      this.stunTimer -= gameSpeed;
+      this.stunTimer -= 1;
       return;
     }
 
     if (this.wallDebuffTimer > 0) {
-      this.wallDebuffTimer -= gameSpeed;
+      this.wallDebuffTimer -= 1;
     }
 
     if (this.isEatable) {
-      this.eatableTimer -= gameSpeed;
+      this.eatableTimer -= 1;
       if (this.eatableTimer <= 0) this.isEatable = false;
     }
 
+    if (this.scrollEffectTimer > 0) {
+      this.scrollEffectTimer -= 1;
+      this.vy += 0.55;
+
+      if (this.y + this.radius >= ARENA_SIZE - 3) {
+        this.scrollDmgTimer += 1;
+        if (this.scrollDmgTimer >= 20) {
+          this.scrollDmgTimer = 0;
+          const tickDmg = 3;
+          applyDamage(this, tickDmg);
+          addFloatingText(this.x + (Math.random() - 0.5) * 12, this.y - 18, `-${tickDmg}`, '#ff3344');
+          shakeTimer = Math.max(shakeTimer, 3);
+
+          for (let k = 0; k < 5; k++) {
+            skillEffects.push({
+              type: 'DUST',
+              x: this.x + (Math.random() - 0.5) * 24,
+              y: ARENA_SIZE - 2,
+              radius: Math.random() * 4 + 2,
+              color: '#e84393',
+              life: 14
+            });
+          }
+        }
+      }
+    }
+
     if (this.isFurryBurst && this.furryBurstTarget) {
-      this.furryBurstTimer -= gameSpeed;
+      this.furryBurstTimer -= 1;
       this.vx = 0;
       this.vy = 0;
       shakeTimer = Math.max(shakeTimer, 4);
@@ -260,7 +301,7 @@ class Ball {
           y: this.y,
           vx: Math.cos(angle) * projSpeed,
           vy: Math.sin(angle) * projSpeed,
-          damage: Math.round(this.data.ult.damage / 9), // ★ 김티비 궁극기 데미지 연동 (총 9발로 나누어 적용)
+          damage: 5,
           target: this.furryBurstTarget,
           color: colors[this.burstShotCount % colors.length],
           isRainbowLaser: true,
@@ -282,7 +323,7 @@ class Ball {
     }
 
     if (this.isAiming && this.aimTarget) {
-      this.aimTimer -= gameSpeed;
+      this.aimTimer -= 1;
       this.vx = 0;
       this.vy = 0;
 
@@ -355,7 +396,7 @@ class Ball {
             y: this.y,
             vx: Math.cos(angle) * projSpeed,
             vy: Math.sin(angle) * projSpeed,
-            damage: this.data.basic.damage, // ★ 박지성 기본 스킬 데미지 연동
+            damage: 23,
             target: this.aimTarget,
             color: this.data.color,
             isBullet: true,
@@ -366,20 +407,35 @@ class Ball {
       return;
     }
 
+    // ★ 김민채 170KG 먹방 소용돌이 흡수 이펙트 강화 ★
     if (this.isEating) {
-      this.eatingTimer -= gameSpeed;
-      this.eatingDmgTimer += gameSpeed;
+      this.eatingTimer -= 1;
+      this.eatingDmgTimer += 1;
 
       target.x = this.x;
       target.y = this.y;
       target.vx = 0;
       target.vy = 0;
 
+      // 강력한 블랙홀 빨아들이기용 소용돌이 파티클 생성
+      for (let k = 0; k < 3; k++) {
+        const spiralAngle = Math.random() * Math.PI * 2;
+        const spiralDist = Math.random() * 45 + 15;
+        skillEffects.push({
+          type: 'AURA',
+          x: this.x + Math.cos(spiralAngle) * spiralDist,
+          y: this.y + Math.sin(spiralAngle) * spiralDist,
+          targetX: this.x,
+          targetY: this.y,
+          color: Math.random() < 0.5 ? '#ff7675' : '#e84393',
+          life: 16
+        });
+      }
+
       if (this.eatingDmgTimer >= 60) {
         this.eatingDmgTimer = 0;
-        const eatDmg = this.data.ult.damage; // ★ 김민채 궁극기(먹방) 데미지 연동
-        applyDamage(target, eatDmg);
-        addFloatingText(this.x, this.y - 20, `-${eatDmg}`);
+        applyDamage(target, 15);
+        addFloatingText(this.x, this.y - 20, '-15');
         shakeTimer = 8;
       }
 
@@ -399,13 +455,31 @@ class Ball {
         this.vy = (Math.random() < 0.5 ? 1 : -1) * mySpeed;
 
         target.wallDebuffTimer = 120;
-        shakeTimer = 16;
+        shakeTimer = 20;
+
+        // 방출 시 묵직한 고기/파티클 폭발 효과 추가
+        for (let k = 0; k < 16; k++) {
+          const pAngle = Math.random() * Math.PI * 2;
+          const pSpd = Math.random() * 8 + 3;
+          skillEffects.push({
+            type: 'DEATH_POP',
+            x: this.x,
+            y: this.y,
+            vx: Math.cos(pAngle) * pSpd,
+            vy: Math.sin(pAngle) * pSpd,
+            radius: Math.random() * 5 + 2,
+            color: '#ff7675',
+            life: 20,
+            maxLife: 20
+          });
+        }
       }
       return;
     }
 
     if (this.isEaten) return;
 
+    // ★ 공병은 불만하지 돌진: 흙먼지 튀김 & 속도감 강화 ★
     if (this.isDashing) {
       let currentAngle = Math.atan2(this.vy, this.vx);
       let targetAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -416,36 +490,38 @@ class Ball {
       
       currentAngle += diff * 0.003;
 
-      const dashSpd = 3.6;
+      const dashSpd = 4.2; // 속도감 대폭 강화
       this.vx = Math.cos(currentAngle) * dashSpd;
       this.vy = Math.sin(currentAngle) * dashSpd;
 
-      if (Math.random() < 0.5) {
+      // 돌진 반대 방향으로 자욱한 흙먼지 파티클 배출
+      for (let d = 0; d < 2; d++) {
+        const backAngle = currentAngle + Math.PI + (Math.random() - 0.5) * 0.6;
+        const dustSpd = Math.random() * 2 + 1;
         skillEffects.push({
           type: 'DUST',
-          x: this.x - (this.vx / dashSpd) * this.radius,
-          y: this.y - (this.vy / dashSpd) * this.radius,
-          radius: Math.random() * 3 + 2,
-          color: isDarkTheme() ? '#8a8f9d' : '#94a3b8',
-          life: 14
+          x: this.x - Math.cos(currentAngle) * (this.radius - 2),
+          y: this.y - Math.sin(currentAngle) * (this.radius - 2),
+          radius: Math.random() * 4 + 2,
+          color: Math.random() < 0.6 ? '#8a8f9d' : '#a4b0be', // 리얼한 흙먼지 색상
+          life: 18
         });
       }
     }
 
-    this.x += this.vx * gameSpeed;
-    this.y += this.vy * gameSpeed;
+    this.x += this.vx;
+    this.y += this.vy;
 
     if (this.isDashing && !this.dashHitTarget) {
       const dist = Math.hypot(target.x - this.x, target.y - this.y);
       if (dist < this.radius + target.radius + 4) {
         this.dashHitTarget = true;
-        const dashDmg = this.data.basic.damage; // ★ 공병은 기본 스킬(돌진) 데미지 연동
-        applyDamage(target, dashDmg);
-        addFloatingText(target.x, target.y - 15, `-${dashDmg}`);
-        shakeTimer = 8;
+        applyDamage(target, 20);
+        addFloatingText(target.x, target.y - 15, '-20');
+        shakeTimer = 10;
 
         const knockAngle = Math.atan2(target.y - this.y, target.x - this.x);
-        const knockSpeed = 7.5;
+        const knockSpeed = 8.5;
         target.vx = Math.cos(knockAngle) * knockSpeed;
         target.vy = Math.sin(knockAngle) * knockSpeed;
       }
@@ -484,7 +560,7 @@ class Ball {
     }
 
     if (!p1.isEating && !p2.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst && this.skillCool < 100) {
-      this.skillCool += this.data.coolSpeed * gameSpeed;
+      this.skillCool += this.data.coolSpeed;
       if (this.skillCool >= 100) {
         this.skillCool = 100;
         this.castSkill(target);
@@ -505,21 +581,21 @@ class Ball {
         shakeTimer = 12;
       } else {
         this.ultCharge++;
-        shakeTimer = 6;
+        shakeTimer = 5;
 
         const dx = target.x - this.x;
         const dy = target.y - this.y;
         const angle = Math.atan2(dy, dx);
-        const projSpeed = 6.5;
+        const projSpeed = 2.8;
 
         projectiles.push({
           x: this.x,
           y: this.y,
           vx: Math.cos(angle) * projSpeed,
           vy: Math.sin(angle) * projSpeed,
-          damage: this.data.basic.damage, // ★ 김민채 기본 스킬 데미지 연동
+          damage: 15,
           target: target,
-          color: '#ff7675',
+          color: this.data.color,
           isBL: true,
           life: 140
         });
@@ -528,6 +604,7 @@ class Ball {
       if (isUltReady) {
         this.ultCharge = 0;
         shakeTimer = 10;
+        // ★ 공병은 궁극기: 기존 강렬한 빨간색 경고 구역으로 원복 ★
         skillEffects.push({
           type: 'INSANITY_WARN',
           x: ARENA_SIZE / 2,
@@ -536,7 +613,7 @@ class Ball {
           life: 120,
           maxLife: 120,
           owner: this,
-          damage: this.data.ult.damage // ★ 공병은 궁극기(소파) 데미지 연동
+          damage: 40
         });
       } else {
         playGongSkillSfx();
@@ -547,7 +624,7 @@ class Ball {
         this.dashHitTarget = false;
 
         const angle = Math.atan2(target.y - this.y, target.x - this.x);
-        const dashSpd = 3.6;
+        const dashSpd = 4.2;
         this.vx = Math.cos(angle) * dashSpd;
         this.vy = Math.sin(angle) * dashSpd;
       }
@@ -587,9 +664,48 @@ class Ball {
           targetX: targetX,
           targetY: targetY,
           progress: 0,
-          damage: this.data.basic.damage, // ★ 김티비 기본 스킬(똥) 데미지 연동
+          damage: 20,
           owner: this,
           life: 100
+        });
+      }
+    }
+    else if (this.data.basic.type === 'CUT_DIVIDE') {
+      if (isUltReady) {
+        this.ultCharge = 0;
+        shakeTimer = 20;
+        playGaeunUltSfx();
+
+        target.scrollEffectTimer = 300;
+        target.scrollDmgTimer = 0;
+
+        skillEffects.push({
+          type: 'WEBTOON_SCROLL_UI',
+          life: 300,
+          maxLife: 300
+        });
+      } else {
+        this.ultCharge++;
+        shakeTimer = 12;
+        playGaeunLineSfx();
+
+        const midX = (this.x + target.x) / 2;
+        const midY = (this.y + target.y) / 2;
+        const angle = Math.atan2(target.y - this.y, target.x - this.x) + Math.PI / 2;
+        const len = 500;
+
+        skillEffects.push({
+          type: 'CUT_LINE',
+          x1: midX - Math.cos(angle) * len,
+          y1: midY - Math.sin(angle) * len,
+          x2: midX + Math.cos(angle) * len,
+          y2: midY + Math.sin(angle) * len,
+          owner: this,
+          target: target,
+          damage: 15,
+          life: 240,
+          maxLife: 240,
+          triggered: false
         });
       }
     }
@@ -890,13 +1006,6 @@ function toggleTheme() {
   }
 }
 
-function toggleGameSpeed() {
-  if (gameSpeed === 1.0) gameSpeed = 1.5;
-  else if (gameSpeed === 1.5) gameSpeed = 0.5;
-  else gameSpeed = 1.0;
-  btnSpeed.innerText = `⚡ ${gameSpeed.toFixed(1)}x`;
-}
-
 // =========================================================================
 // [5] 캐릭터 사전 육각형 차트
 // =========================================================================
@@ -1087,7 +1196,7 @@ function loop() {
   ctx.save();
 
   if (shakeTimer > 0) {
-    ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+    ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
     shakeTimer--;
   }
 
@@ -1179,8 +1288,103 @@ function loop() {
         ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
         ctx.fillStyle = ef.color;
         ctx.fill();
-        ef.life -= gameSpeed;
+        ef.life -= 1;
       } 
+      else if (ef.type === 'CUT_LINE') {
+        ctx.save();
+        
+        ctx.beginPath();
+        ctx.moveTo(ef.x1, ef.y1);
+        ctx.lineTo(ef.x2, ef.y2);
+        ctx.strokeStyle = '#111111';
+        ctx.lineWidth = 10;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(ef.x1, ef.y1);
+        ctx.lineTo(ef.x2, ef.y2);
+        ctx.strokeStyle = '#e84393';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#e84393';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(ef.x1, ef.y1);
+        ctx.lineTo(ef.x2, ef.y2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        if (Math.random() < 0.5) {
+          const t = Math.random();
+          const px = ef.x1 + (ef.x2 - ef.x1) * t;
+          const py = ef.y1 + (ef.y2 - ef.y1) * t;
+          skillEffects.push({
+            type: 'DUST',
+            x: px + (Math.random() - 0.5) * 8,
+            y: py + (Math.random() - 0.5) * 8,
+            radius: Math.random() * 3 + 1.5,
+            color: '#fd79a8',
+            life: 12
+          });
+        }
+        ctx.restore();
+
+        if (gameState === 'PLAYING' && !ef.triggered) {
+          const targetDist = distToSegment(ef.target, { x: ef.x1, y: ef.y1 }, { x: ef.x2, y: ef.y2 });
+          if (targetDist < ef.target.radius + 4) {
+            ef.triggered = true;
+            playGaeunCutSfx();
+
+            applyDamage(ef.target, ef.damage);
+            addFloatingText(ef.target.x, ef.target.y - 18, `-${ef.damage}`, '#ff3344');
+            shakeTimer = 18;
+
+            const tempVx = ef.target.vx;
+            ef.target.vx = -ef.target.vy * 1.6;
+            ef.target.vy = tempVx * 1.6;
+
+            for (let k = 0; k < 18; k++) {
+              const pAngle = Math.random() * Math.PI * 2;
+              const pSpd = Math.random() * 6 + 2;
+              skillEffects.push({
+                type: 'DEATH_POP',
+                x: ef.target.x,
+                y: ef.target.y,
+                vx: Math.cos(pAngle) * pSpd,
+                vy: Math.sin(pAngle) * pSpd,
+                radius: Math.random() * 4 + 2,
+                color: Math.random() < 0.5 ? '#e84393' : '#2d3436',
+                life: 24,
+                maxLife: 24
+              });
+            }
+          }
+        }
+        ef.life -= 1;
+      }
+      else if (ef.type === 'WEBTOON_SCROLL_UI') {
+        const offset = (Date.now() / 2.5) % 40;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(232, 67, 147, 0.28)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([14, 8]);
+        for (let y = -40 + offset; y < ARENA_SIZE; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(ARENA_SIZE, y);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = 'rgba(232, 67, 147, 0.18)';
+        ctx.font = 'bold 24px "NeoDunggeunmo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('▼ SCROLL ▼', ARENA_SIZE / 2, (offset * 3) % ARENA_SIZE);
+
+        ctx.restore();
+        ef.life -= 1;
+      }
       else if (ef.type === 'MUSHROOM_CLOUD') {
         const progress = 1 - ef.life / ef.maxLife;
         ctx.save();
@@ -1217,16 +1421,16 @@ function loop() {
         ctx.fill();
 
         ctx.restore();
-        ef.life -= gameSpeed;
+        ef.life -= 1;
       }
       else if (ef.type === 'DEATH_POP') {
-        ef.x += ef.vx * gameSpeed;
-        ef.y += ef.vy * gameSpeed;
+        ef.x += ef.vx;
+        ef.y += ef.vy;
         ctx.beginPath();
         ctx.arc(ef.x, ef.y, ef.radius * (ef.life / ef.maxLife), 0, Math.PI * 2);
         ctx.fillStyle = ef.color;
         ctx.fill();
-        ef.life -= gameSpeed;
+        ef.life -= 1;
       }
       else if (ef.type === 'AURA') {
         ef.x += (ef.targetX - ef.x) * 0.18;
@@ -1237,7 +1441,7 @@ function loop() {
         ctx.shadowColor = ef.color;
         ctx.shadowBlur = 6;
         ctx.fill();
-        ef.life -= gameSpeed;
+        ef.life -= 1;
       }
       else if (ef.type === 'CHARGE_PULSE') {
         ctx.beginPath();
@@ -1247,8 +1451,8 @@ function loop() {
         ctx.shadowColor = ef.color;
         ctx.shadowBlur = 10;
         ctx.stroke();
-        ef.radius += 2.8 * gameSpeed;
-        ef.life -= gameSpeed;
+        ef.radius += 2.8;
+        ef.life -= 1;
       }
       else if (ef.type === 'LASER_BEAM') {
         ctx.save();
@@ -1269,25 +1473,40 @@ function loop() {
         ctx.stroke();
         ctx.restore();
 
-        ef.life -= gameSpeed;
+        ef.life -= 1;
       }
+      // ★ 공병은 궁극기: 빨간색 원형 차오르는 경고 연출 원복 ★
       else if (ef.type === 'INSANITY_WARN') {
         const progress = 1 - ef.life / ef.maxLife;
 
+        ctx.save();
+        // 외곽 실선 빨간 테두리
         ctx.beginPath();
         ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 51, 68, 0.15)';
         ctx.fill();
         ctx.strokeStyle = '#ff3344';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#ff3344';
+        ctx.shadowBlur = 8;
         ctx.stroke();
 
+        // 안쪽에서 차오르는 붉은 충전 영역
         ctx.beginPath();
         ctx.arc(ef.x, ef.y, ef.radius * progress, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 51, 68, 0.35)';
+        ctx.fillStyle = 'rgba(255, 51, 68, 0.4)';
         ctx.fill();
 
-        ef.life -= gameSpeed;
+        // ⚠️ DANGER 경고 표시
+        if (Math.floor(Date.now() / 150) % 2 === 0) {
+          ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
+          ctx.fillStyle = '#ff3344';
+          ctx.textAlign = 'center';
+          ctx.fillText('⚠️ WARNING ⚠️', ef.x, ef.y - ef.radius - 8);
+        }
+        ctx.restore();
+
+        ef.life -= 1;
 
         if (ef.life <= 0) {
           playSofaDropSfx();
@@ -1296,30 +1515,60 @@ function loop() {
             type: 'SOFA_FALL',
             x: ef.x,
             y: ef.y,
-            currentY: -60,
+            currentY: -80,
             targetY: ef.y,
             radius: ef.radius,
             damage: ef.damage,
             owner: ef.owner,
-            life: 18,
-            maxLife: 18
+            life: 20,
+            maxLife: 20
           });
         }
       } 
+      // ★ 공병은 궁극기 소파 낙하 & 대형 충격파 폭발 연출 ★
       else if (ef.type === 'SOFA_FALL') {
         const progress = 1 - ef.life / ef.maxLife;
-        ef.currentY = -60 + (ef.targetY + 60) * Math.pow(progress, 2);
+        ef.currentY = -80 + (ef.targetY + 80) * Math.pow(progress, 2.5);
 
-        ctx.font = 'bold 55px "NeoDunggeunmo", sans-serif';
+        // 낙하하는 소파 잔상 궤적
+        ctx.save();
+        ctx.font = 'bold 58px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+
+        // 화염/속도선 잔상
+        ctx.fillStyle = 'rgba(255, 87, 34, 0.4)';
+        ctx.fillText('🛋️', ef.x, ef.currentY - 15);
+        ctx.fillStyle = '#ffffff';
         ctx.fillText('🛋️', ef.x, ef.currentY);
+        ctx.restore();
 
-        ef.life -= gameSpeed;
+        ef.life -= 1;
 
+        // 착지 순간 대형 폭발
         if (ef.life <= 0) {
-          shakeTimer = 18;
-          skillEffects.push({ type: 'DUST', x: ef.x, y: ef.y, radius: 105, color: 'rgba(72, 219, 251, 0.3)', life: 10 });
+          shakeTimer = 28; // 화끈한 화면 흔들림
+
+          // 착지 지점 대형 폭발 링
+          skillEffects.push({ type: 'DUST', x: ef.x, y: ef.y, radius: 110, color: 'rgba(255, 51, 68, 0.4)', life: 12 });
+          skillEffects.push({ type: 'DUST', x: ef.x, y: ef.y, radius: 80, color: 'rgba(255, 160, 0, 0.6)', life: 16 });
+
+          // 360도 방사형 파파팍 파티클 폭발
+          for (let p = 0; p < 24; p++) {
+            const expAngle = Math.random() * Math.PI * 2;
+            const expSpd = Math.random() * 8 + 3;
+            skillEffects.push({
+              type: 'DEATH_POP',
+              x: ef.x,
+              y: ef.y,
+              vx: Math.cos(expAngle) * expSpd,
+              vy: Math.sin(expAngle) * expSpd,
+              radius: Math.random() * 6 + 3,
+              color: Math.random() < 0.5 ? '#ff3344' : '#ff9f43',
+              life: 25,
+              maxLife: 25
+            });
+          }
 
           [p1, p2].forEach(p => {
             if (p !== ef.owner) {
@@ -1327,7 +1576,7 @@ function loop() {
               if (dist <= ef.radius + p.radius) {
                 applyDamage(p, ef.damage);
                 p.stunTimer = 60;
-                addFloatingText(p.x, p.y - 15, `-${ef.damage}`);
+                addFloatingText(p.x, p.y - 15, `-40`, '#ff3344');
               }
             }
           });
@@ -1341,7 +1590,7 @@ function loop() {
       const proj = projectiles[i];
 
       if (proj.type === 'POOP_FLYING') {
-        proj.progress += 0.035 * gameSpeed;
+        proj.progress += 0.035;
         proj.x = proj.startX + (proj.targetX - proj.startX) * proj.progress;
         proj.y = proj.startY + (proj.targetY - proj.startY) * proj.progress - Math.sin(proj.progress * Math.PI) * 35;
 
@@ -1362,9 +1611,9 @@ function loop() {
         continue;
       }
 
-      proj.x += proj.vx * gameSpeed;
-      proj.y += proj.vy * gameSpeed;
-      proj.life -= gameSpeed;
+      proj.x += proj.vx;
+      proj.y += proj.vy;
+      proj.life -= 1;
 
       if (proj.isBL) {
         ctx.save();
@@ -1372,82 +1621,93 @@ function loop() {
         const blAngle = Math.atan2(proj.vy, proj.vx);
         ctx.rotate(blAngle);
 
-        const grad = ctx.createLinearGradient(-38, 0, 15, 0);
+        const grad = ctx.createLinearGradient(-45, 0, 20, 0);
         grad.addColorStop(0, 'rgba(255, 118, 117, 0)');
-        grad.addColorStop(0.6, '#ff4757');
+        grad.addColorStop(0.5, '#ff4757');
         grad.addColorStop(1, '#ffffff');
 
         ctx.beginPath();
-        ctx.moveTo(-38, 0);
-        ctx.lineTo(15, 0);
+        ctx.moveTo(-45, 0);
+        ctx.lineTo(20, 0);
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 9;
+        ctx.lineWidth = 11;
         ctx.shadowColor = '#ff4757';
-        ctx.shadowBlur = 14;
+        ctx.shadowBlur = 18;
         ctx.stroke();
 
         ctx.save();
-        ctx.rotate(Date.now() / 80);
-        ctx.font = 'bold 18px "NeoDunggeunmo", sans-serif';
+        ctx.rotate(Date.now() / 60);
+        ctx.font = 'bold 20px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('💖', 0, 0);
         ctx.restore();
 
-        ctx.font = 'bold 24px "NeoDunggeunmo", sans-serif';
+        ctx.font = 'bold 26px "NeoDunggeunmo", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.shadowColor = '#ff4757';
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 14;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('BL', 0, 0);
 
         ctx.restore();
+
+        if (Math.random() < 0.6) {
+          skillEffects.push({
+            type: 'DUST',
+            x: proj.x - proj.vx * 2,
+            y: proj.y - proj.vy * 2,
+            radius: Math.random() * 3.5 + 1.5,
+            color: '#ff7675',
+            life: 10
+          });
+        }
       }
       else if (proj.isRainbowLaser) {
         ctx.save();
         ctx.translate(proj.x, proj.y);
-        const projAngle = Math.atan2(proj.vy, proj.vx);
-        ctx.rotate(projAngle);
+        const angle = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(angle);
 
-        const tailGrad = ctx.createLinearGradient(-30, 0, 8, 0);
-        tailGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        tailGrad.addColorStop(0.4, proj.color);
-        tailGrad.addColorStop(0.85, '#ffffff');
-        tailGrad.addColorStop(1, proj.color);
+        const grad = ctx.createLinearGradient(-42, 0, 10, 0);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        grad.addColorStop(0.4, proj.color);
+        grad.addColorStop(1, '#ffffff');
 
         ctx.beginPath();
-        ctx.moveTo(-30, 0);
-        ctx.quadraticCurveTo(-12, -4, 8, 0);
-        ctx.quadraticCurveTo(-12, 4, -30, 0);
-        ctx.fillStyle = tailGrad;
+        ctx.moveTo(-42, 0);
+        ctx.lineTo(12, 0);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 8;
         ctx.shadowColor = proj.color;
-        ctx.shadowBlur = 14;
-        ctx.fill();
+        ctx.shadowBlur = 16;
+        ctx.stroke();
 
-        ctx.save();
-        ctx.rotate(Date.now() / 45);
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.moveTo(0, -5);
-        ctx.lineTo(4, 0);
-        ctx.lineTo(0, 5);
-        ctx.lineTo(-4, 0);
-        ctx.closePath();
+        ctx.arc(6, 0, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = proj.color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
-
-        ctx.beginPath();
-        ctx.arc(0, 0, 6, 0, Math.PI * 2);
+        ctx.rotate(Date.now() / 40);
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-12, 0); ctx.lineTo(12, 0);
+        ctx.moveTo(0, -12); ctx.lineTo(0, 12);
         ctx.stroke();
 
         ctx.restore();
+
+        skillEffects.push({
+          type: 'AURA',
+          x: proj.x + (Math.random() - 0.5) * 8,
+          y: proj.y + (Math.random() - 0.5) * 8,
+          targetX: proj.x,
+          targetY: proj.y,
+          color: proj.color,
+          life: 8
+        });
       } else if (proj.isBullet) {
         ctx.save();
         ctx.translate(proj.x, proj.y);
@@ -1477,9 +1737,8 @@ function loop() {
         ctx.restore();
       }
 
-      const hitMargin = proj.isBL ? 12 : 6;
       const dist = Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y);
-      if (dist < proj.target.radius + hitMargin) {
+      if (dist < proj.target.radius + 6) {
         applyDamage(proj.target, proj.damage);
         addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`);
         shakeTimer = 5;
@@ -1499,8 +1758,8 @@ function loop() {
       ctx.font = 'bold 15px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(ft.text, ft.x, ft.y);
-      ft.y -= 0.4 * gameSpeed;
-      ft.alpha -= 0.03 * gameSpeed;
+      ft.y -= 0.4;
+      ft.alpha -= 0.03;
       if (ft.alpha <= 0) floatingTexts.splice(i, 1);
     }
   }
@@ -1533,7 +1792,12 @@ document.getElementById('btn-dict').addEventListener('click', () => {
 });
 document.getElementById('btn-settings').addEventListener('click', () => showScreen('screen-settings'));
 document.getElementById('btn-theme-settings').addEventListener('click', toggleTheme);
-document.getElementById('btn-speed').addEventListener('click', toggleGameSpeed);
+
+document.getElementById('btn-exit').addEventListener('click', () => {
+  gameState = 'IDLE';
+  showScreen('screen-main');
+});
+
 document.getElementById('btn-mode-1v1').addEventListener('click', () => showScreen('screen-char'));
 document.getElementById('btn-back-mode').addEventListener('click', () => showScreen('screen-main'));
 document.getElementById('btn-back-char').addEventListener('click', () => showScreen('screen-mode'));

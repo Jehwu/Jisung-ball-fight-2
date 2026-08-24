@@ -57,7 +57,6 @@ body {
   }
 }
 
-/* 키프레임 애니메이션 */
 @keyframes screenFadeIn {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
@@ -130,7 +129,7 @@ body {
   transition: all 0.15s ease;
 }
 
-.btn-theme:hover { background: var(--border-color); }
+.btn-theme:hover { background: #ff3344; border-color: #ff3344; color: #fff; }
 
 .game-title {
   font-size: 26px;
@@ -171,9 +170,7 @@ body {
   transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.btn-tech:hover {
-  border-color: #ff3344;
-}
+.btn-tech:hover { border-color: #ff3344; }
 
 .btn-tech:active {
   animation: buttonPulse 0.15s ease-in-out;
@@ -201,17 +198,8 @@ body {
   animation: slideInLeft 0.3s ease-out;
 }
 
-.setting-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.setting-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-main);
-}
+.setting-row { display: flex; justify-content: space-between; align-items: center; }
+.setting-label { font-size: 11px; font-weight: 800; color: var(--text-main); }
 
 .btn-tech-sm {
   background: var(--bg-main);
@@ -223,12 +211,7 @@ body {
   cursor: pointer;
 }
 
-#bgm-volume {
-  width: 80px;
-  height: 10px;
-  accent-color: #ff3344;
-  cursor: pointer;
-}
+#bgm-volume { width: 80px; height: 10px; accent-color: #ff3344; cursor: pointer; }
 
 .char-select-section { width: 100%; margin-bottom: 12px; }
 .section-label { font-size: 10px; font-weight: 900; margin-bottom: 4px; }
@@ -237,8 +220,8 @@ body {
 
 .char-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
   width: 100%;
 }
 
@@ -249,15 +232,14 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 8px 0;
+  padding: 6px 0;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .char-card:hover { transform: translateY(-2px); }
-
-.char-card .char-emoji { font-size: 18px; margin-bottom: 2px; }
-.char-card .char-name { font-size: 9px; font-weight: 800; color: var(--text-sub); }
+.char-card .char-emoji { font-size: 16px; margin-bottom: 2px; }
+.char-card .char-name { font-size: 8px; font-weight: 800; color: var(--text-sub); letter-spacing: -0.5px; }
 
 #p1-char-grid .char-card.selected { border: 2px solid #ff3344; background: rgba(255, 51, 68, 0.15); }
 #p1-char-grid .char-card.selected .char-name { color: #ff3344; }
@@ -265,24 +247,20 @@ body {
 #p2-char-grid .char-card.selected { border: 2px solid #00e676; background: rgba(0, 230, 118, 0.15); }
 #p2-char-grid .char-card.selected .char-name { color: #00e676; }
 
-.dict-tabs { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; }
+.dict-tabs { display: flex; gap: 3px; width: 100%; margin-bottom: 6px; }
 
 .dict-tab {
   flex: 1;
-  padding: 6px 0;
+  padding: 5px 0;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .dict-tab:hover { transform: translateY(-2px); }
-
-.dict-tab.active {
-  border: 2px solid #ff3344;
-  background: rgba(255, 51, 68, 0.15);
-}
+.dict-tab.active { border: 2px solid #ff3344; background: rgba(255, 51, 68, 0.15); }
 
 .dict-card {
   width: 100%;
@@ -340,6 +318,7 @@ canvas#gameCanvas {
   margin: 0 auto;
 }
 
+/* HUD 체력바 밀착 및 두께 강화 구조 */
 .hud {
   width: 100%;
   flex: 1;
@@ -347,18 +326,19 @@ canvas#gameCanvas {
   padding: 8px 10px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
-.player-card { display: flex; flex-direction: column; gap: 1px; }
-.player-header { display: flex; justify-content: space-between; align-items: center; }
+.player-card { display: flex; flex-direction: column; gap: 0px; }
+.player-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
 .player-name { font-size: 10px; font-weight: 900; }
 .hp-text { font-size: 9px; font-weight: 800; color: var(--text-sub); font-family: monospace; }
 
+/* 체력바 두께 대폭 증가 (14px) 및 스킬바/궁바 틈 없이 연결 */
 .bar-frame { width: 100%; background: var(--bg-main); border: 1px solid var(--border-color); position: relative; overflow: hidden; }
-.hp-frame { height: 10px; }
-.skill-frame { height: 4px; margin-top: 1px; }
-.ult-frame { height: 5px; margin-top: 1px; }
+.hp-frame { height: 14px; border-bottom: none; }
+.skill-frame { height: 4px; border-bottom: none; }
+.ult-frame { height: 5px; }
 
 .bar-fill { height: 100%; width: 100%; transition: width 0.1s linear; }
 
@@ -368,8 +348,7 @@ canvas#gameCanvas {
 .p1-ult-fill { background: linear-gradient(90deg, #ffc107, #ff9f43); }
 .p2-ult-fill { background: linear-gradient(90deg, #a55eea, #45aaf2); }
 
-.bar-label { font-size: 7px; font-weight: 800; color: var(--text-sub); margin-top: 1px; }
-.ult-label { color: #ffc107; }
+.bar-label { display: none; } /* 공간 차지 없애고 직관적인 체력바 통합 바 */
 
 #overlay-msg {
   position: absolute;
