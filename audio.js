@@ -1,0 +1,53 @@
+export const bgm = new Audio('sounds/bgm.mp3');
+bgm.loop = true;
+bgm.volume = 0.5;
+
+export class SoundPool {
+  constructor(src, size = 4) {
+    this.pool = Array.from({ length: size }, () => {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+      return audio;
+    });
+    this.currentIndex = 0;
+  }
+
+  play(volume = 0.5) {
+    const sound = this.pool[this.currentIndex];
+    sound.volume = volume;
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+    this.currentIndex = (this.currentIndex + 1) % this.pool.length;
+  }
+}
+
+export const clickPool = new SoundPool('sounds/click.mp3', 3);
+export const gongSkillPool = new SoundPool('sounds/gong_skill.mp3', 3);
+export const sofaDropPool = new SoundPool('sounds/sofa_drop.mp3', 3);
+export const kimEatPool = new SoundPool('sounds/kim_eat.mp3', 3);
+export const kimSpitPool = new SoundPool('sounds/kim_spit.mp3', 3);
+export const bouncePool = new SoundPool('sounds/bounce.mp3', 6);
+export const parkShootPool = new SoundPool('sounds/park_shoot.mp3', 3);
+export const parkUltChargePool = new SoundPool('sounds/park_ult_charge.mp3', 2);
+export const parkUltShootPool = new SoundPool('sounds/park_ult_shoot.mp3', 2);
+export const poopTrapPool = new SoundPool('sounds/poop_trap.mp3', 3);
+export const poopEatPool = new SoundPool('sounds/poop_eat.mp3', 3);
+export const gaeunLinePool = new SoundPool('sounds/gaeun_line.mp3', 3);
+export const gaeunCutPool = new SoundPool('sounds/gaeun_cut.mp3', 3);
+export const gaeunUltPool = new SoundPool('sounds/gaeun_ult.mp3', 2);
+
+// ★ 김건우 스킬 사운드 풀 추가 ★
+export const geonwooWavePool = new SoundPool('sounds/geonwoo_wave.mp3', 3);  // 저음 보이스 (기본스킬)
+export const geonwooSmokePool = new SoundPool('sounds/geonwoo_smoke.mp3', 3); // 전술 연막 (궁극기)
+
+let lastBounceTime = 0;
+export function playBounceSfx() {
+  const now = Date.now();
+  if (now - lastBounceTime >= 100) {
+    lastBounceTime = now;
+    bouncePool.play(bgm.volume);
+  }
+}
+
+export function playBGM() { if (bgm.paused) bgm.play().catch(() => {}); }
+export function stopBGM() { bgm.pause(); bgm.currentTime = 0; }

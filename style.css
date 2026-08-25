@@ -187,7 +187,6 @@ body {
   margin-top: 2px;
 }
 
-/* 우측 상단 패치노트 전용 버튼 스타일 */
 .btn-tech-patch {
   position: absolute;
   top: 10px;
@@ -233,7 +232,6 @@ body {
 
 #bgm-volume { width: 80px; height: 10px; accent-color: #ff3344; cursor: pointer; }
 
-/* 패치노트 카드 및 태그 전용 스타일 */
 .patch-card {
   width: 100%;
   background: var(--bg-card);
@@ -289,10 +287,11 @@ body {
 .p1-color { color: #ff3344; }
 .p2-color { color: #00e676; }
 
+/* 캐릭터 6개 대응 그리드 레이아웃 조정 */
 .char-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
   width: 100%;
 }
 
@@ -309,8 +308,8 @@ body {
 }
 
 .char-card:hover { transform: translateY(-2px); }
-.char-card .char-emoji { font-size: 16px; margin-bottom: 2px; }
-.char-card .char-name { font-size: 8px; font-weight: 800; color: var(--text-sub); letter-spacing: -0.5px; }
+.char-card .char-emoji { font-size: 15px; margin-bottom: 2px; }
+.char-card .char-name { font-size: 7.5px; font-weight: 800; color: var(--text-sub); letter-spacing: -0.5px; }
 
 #p1-char-grid .char-card.selected { border: 2px solid #ff3344; background: rgba(255, 51, 68, 0.15); }
 #p1-char-grid .char-card.selected .char-name { color: #ff3344; }
@@ -325,7 +324,7 @@ body {
   padding: 5px 0;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }

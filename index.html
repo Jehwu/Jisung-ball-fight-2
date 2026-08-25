@@ -12,7 +12,6 @@
   <div id="game-container" class="dark-theme">
     <!-- 1. 메인 화면 -->
     <div id="screen-main" class="screen active">
-      <!-- 우측 상단 패치노트 버튼 -->
       <button id="btn-patch" class="btn-tech-patch">📜 패치노트</button>
 
       <h1 class="game-title">JS BALL BATTLE 2</h1>
@@ -44,14 +43,13 @@
     <div id="screen-patch" class="screen">
       <h2 class="screen-title">PATCH NOTES</h2>
       <div class="patch-card">
-        <div class="patch-version">VER 2.2 SPEED & FIX UPDATE</div>
+        <div class="patch-version">VER 2.4 BALANCE & OPTIMIZATION</div>
         <ul class="patch-list">
-          <li><span class="badge buff">BUFF</span> <strong>👁️ 박지성:</strong> 저격 탄환 투사체 속도 +30% (10.0 → 13.0)</li>
-          <li><span class="badge buff">BUFF</span> <strong>🐽 김민채:</strong> BL 투척 속도 +20% (2.8 → 3.36)</li>
-          <li><span class="badge buff">BUFF</span> <strong>🎨 김가은:</strong> 컷 가르기 (15 → 17), 궁극기 (40 → 45)</li>
-          <li><span class="badge nerf">NERF</span> <strong>📺 김티비:</strong> 퍼리 버스트 (45 → 40)</li>
-          <li><span class="badge sys">SYS</span> <strong>⚡ 120Hz 클릭 가속 버그 수정:</strong> 고정 60 FPS 보정 알고리즘 적용</li>
-          <li><span class="badge sys">SYS</span> <strong>👥 미러전:</strong> P2 색상 및 궁극기/스킬 이펙트 색상 완전 분리</li>
+          <li><span class="badge buff">BUFF</span> <strong>🎧 김건우:</strong> [저음 보이스] 쿨타임 3.8초·범위 +10% / [전술 연막] 궁뎀 40 상향 & SFX 추가</li>
+          <li><span class="badge fix">FIX</span> <strong>📺 김티비:</strong> [똥먹방] 버섯구름 폭발 이펙트 원복 / [SSR급 퍼리 니케샷] 무지개 레이저 복구 & 궁뎀 40 연동</li>
+          <li><span class="badge fix">FIX</span> <strong>🎨 김가은:</strong> [스케치] 최신 선 1개 유지 보정 / [ㄹㅈㄷ 정주행] DB 궁뎀(45) 동적 연동</li>
+          <li><span class="badge sys">SYS</span> <strong>🎨 미러전:</strong> P2 RGB 완전 색상 반전 및 스킬 이펙트 색상 동적 연동</li>
+          <li><span class="badge sys">SYS</span> <strong>⚡ 최적화:</strong> 모듈 구조 분리, 캔버스 블러 조절 및 60 FPS 방어 최적화</li>
         </ul>
       </div>
       <button id="btn-back-patch" class="btn-tech secondary" style="margin-top: 12px;">뒤로가기</button>
@@ -77,6 +75,7 @@
           <div class="char-card" data-key="PARK"><span class="char-emoji">👁️</span><span class="char-name">박지성</span></div>
           <div class="char-card" data-key="TV"><span class="char-emoji">📺</span><span class="char-name">김티비</span></div>
           <div class="char-card" data-key="GAEUN"><span class="char-emoji">🎨</span><span class="char-name">김가은</span></div>
+          <div class="char-card" data-key="GEONWOO"><span class="char-emoji">🎧</span><span class="char-name">김건우</span></div>
         </div>
       </div>
 
@@ -88,6 +87,7 @@
           <div class="char-card" data-key="PARK"><span class="char-emoji">👁️</span><span class="char-name">박지성</span></div>
           <div class="char-card" data-key="TV"><span class="char-emoji">📺</span><span class="char-name">김티비</span></div>
           <div class="char-card" data-key="GAEUN"><span class="char-emoji">🎨</span><span class="char-name">김가은</span></div>
+          <div class="char-card" data-key="GEONWOO"><span class="char-emoji">🎧</span><span class="char-name">김건우</span></div>
         </div>
       </div>
 
@@ -105,6 +105,7 @@
         <button class="dict-tab" data-key="PARK">👁️</button>
         <button class="dict-tab" data-key="TV">📺</button>
         <button class="dict-tab" data-key="GAEUN">🎨</button>
+        <button class="dict-tab" data-key="GEONWOO">🎧</button>
       </div>
 
       <div class="dict-card">
