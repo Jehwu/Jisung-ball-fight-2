@@ -614,11 +614,22 @@ export class Ball {
       if (isUltReady) {
         this.ultCharge = 0;
         triggerShake(22);
-        geonwooSmokePool.play(); // ★ 김건우 궁극기 사운드 재생 ★
+        geonwooSmokePool.play();
 
-        for (let k = 0; k < 3; k++) {
-          const rx = Math.random() * (ARENA_SIZE - 100) + 50;
-          const ry = Math.random() * (ARENA_SIZE - 100) + 50;
+        // 연막 개수를 2개로 축소 (1개는 적 직격, 1개는 맵 전체 랜덤)
+        for (let k = 0; k < 2; k++) {
+          let rx, ry;
+
+          if (k === 0) {
+            rx = target.x;
+            ry = target.y;
+          } else {
+            rx = Math.random() * (ARENA_SIZE - 100) + 50;
+            ry = Math.random() * (ARENA_SIZE - 100) + 50;
+          }
+
+          rx = Math.max(40, Math.min(ARENA_SIZE - 40, rx));
+          ry = Math.max(40, Math.min(ARENA_SIZE - 40, ry));
 
           skillEffects.push({
             type: 'NIGHTFALL_ZONE',
@@ -639,14 +650,14 @@ export class Ball {
       } else {
         this.ultCharge++;
         triggerShake(12);
-        geonwooWavePool.play(); // ★ 김건우 기본스킬 사운드 재생 ★
+        geonwooWavePool.play();
 
         skillEffects.push({
           type: 'SUBWOOFER_WAVE',
           x: this.x,
           y: this.y,
           radius: 10,
-          maxRadius: 101.2,
+          maxRadius: 111.32, // 기본 스킬 범위 추가 10% 증가 적용
           owner: this,
           target: target,
           color: this.color,
@@ -849,8 +860,8 @@ export class Ball {
 
       ctx.beginPath();
       ctx.moveTo(-lineEnd, 0); ctx.lineTo(-lineStart, 0);
-      ctx.moveTo(0, -lineEnd); ctx.lineTo(0, -lineStart);
       ctx.moveTo(lineStart, 0); ctx.lineTo(lineEnd, 0);
+      ctx.moveTo(0, lineStart); ctx.lineTo(0, lineEnd);
       ctx.moveTo(0, lineStart); ctx.lineTo(0, lineEnd);
       ctx.stroke();
 
