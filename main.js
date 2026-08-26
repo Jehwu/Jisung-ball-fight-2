@@ -3,7 +3,8 @@ import { checkBounce } from './physics.js';
 import { Ball } from './ball.js';
 import { 
   bgm, clickPool, sofaDropPool, parkShootPool, poopTrapPool, poopEatPool, 
-  gaeunCutPool, playBounceSfx, playBGM, stopBGM 
+  gaeunCutPool, playBounceSfx, playBGM, stopBGM,
+  criminalParryPool, criminalBombPool
 } from './audio.js';
 import { distToSegment, drawHexagonFrame } from './effects.js';
 
@@ -67,6 +68,36 @@ function triggerDeathExplosion(ball) {
 
 function applyDamage(target, amount) {
   if (gameState !== 'PLAYING') return;
+
+  if (target.counterStanceTimer > 0 && amount > 0) {
+    criminalParryPool.play();
+    target.counterStanceTimer = 0;
+    const enemy = (target === p1) ? p2 : p1;
+
+    const oldX = target.x;
+    const oldY = target.y;
+
+    const enemyAngle = Math.atan2(enemy.vy, enemy.vx) || 0;
+    const tpAngle = enemyAngle + Math.PI;
+    target.x = Math.max(30, Math.min(ARENA_SIZE - 30, enemy.x + Math.cos(tpAngle) * 35));
+    target.y = Math.max(30, Math.min(ARENA_SIZE - 30, enemy.y + Math.sin(tpAngle) * 35));
+
+    triggerShake(12);
+
+    skillEffects.push({
+      type: 'ROSE_DOLL_BOMB',
+      x: oldX,
+      y: oldY,
+      radius: 115,
+      damage: 35,
+      target: enemy,
+      owner: target,
+      life: 120,
+      maxLife: 120
+    });
+    return;
+  }
+
   target.hp = Math.max(0, target.hp - amount);
   updateHUD();
 
@@ -213,9 +244,6 @@ function endGame() {
 function showOverlay(msg) { overlayMsg.innerText = msg; overlayMsg.classList.add('active'); }
 function hideOverlay() { overlayMsg.classList.remove('active'); }
 
-// =========================================================================
-// 메인 프레임 루프 (최적화 반영)
-// =========================================================================
 function loop(now) {
   animFrameId = requestAnimationFrame(loop);
 
@@ -224,7 +252,6 @@ function loop(now) {
   if (elapsed < fpsInterval) return;
   lastTime = now - (elapsed % fpsInterval);
 
-  // 파티클 메모리 과부하 방지 (최대 120개 제한)
   if (skillEffects.length > 120) {
     skillEffects.splice(0, skillEffects.length - 120);
   }
@@ -261,7 +288,6 @@ function loop(now) {
       updateHUD();
     }
 
-    // 김티비 똥 트랩 처리 및 복구된 원본 폭발 비주얼
     for (let i = landedPoops.length - 1; i >= 0; i--) {
       const poop = landedPoops[i];
       ctx.font = 'bold 16px "NeoDunggeunmo", sans-serif';
@@ -279,10 +305,8 @@ function loop(now) {
           addFloatingText(enemy.x, enemy.y - 15, `-${poop.damage}`, '#ff3344');
           triggerShake(12);
 
-          // 화려한 버섯구름 폭발 이펙트 생성
           skillEffects.push({ type: 'MUSHROOM_CLOUD', x: poop.x, y: poop.y, life: 30, maxLife: 30 });
 
-          // 파티클 파편 폭발(DEATH_POP) 복구
           for (let p = 0; p < 14; p++) {
             const expAngle = Math.random() * Math.PI * 2;
             const expSpd = Math.random() * 6 + 2;
@@ -325,6 +349,243 @@ function loop(now) {
         ctx.fill();
         ef.life -= 1;
       } 
+      else if (ef.type === 'COOLDOWN_ORB') {
+        ef.x += (ef.owner.x - ef.x) * 0.15;
+        ef.y += (ef.owner.y - ef.y) * 0.15;
+
+        ef.trailHistory.push({ x: ef.x, y: ef.y });
+        if (ef.trailHistory.length > 10) ef.trailHistory.shift();
+
+        ctx.save();
+        ctx.beginPath();
+        for (let t = 0; t < ef.trailHistory.length; t++) {
+          const pt = ef.trailHistory[t];
+          if (t === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.restore();
+
+        if (Math.hypot(ef.owner.x - ef.x, ef.owner.y - ef.y) < 14) {
+          ef.owner.skillCool = Math.min(100, ef.owner.skillCool + (0.65 * 60 * ef.owner.data.coolSpeed));
+          ef.life = 0;
+        }
+      }
+      else if (ef.type === 'ROSE_DOLL_BOMB') {
+        const fuseProgress = 1 - (ef.life / ef.maxLife);
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, ef.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 52, 80, ${0.35 + fuseProgress * 0.65})`;
+        ctx.lineWidth = 2 + fuseProgress * 2.5;
+        ctx.shadowColor = '#ff3450';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, ef.radius * fuseProgress, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 52, 80, ${0.15 + fuseProgress * 0.25})`;
+        ctx.fill();
+
+        const shakeOffset = fuseProgress > 0.6 ? (Math.random() - 0.5) * (fuseProgress * 7) : 0;
+        const pulseScale = 1 + Math.sin(fuseProgress * Math.PI * 10) * (0.12 * fuseProgress);
+
+        ctx.translate(shakeOffset, shakeOffset);
+        ctx.scale(pulseScale, pulseScale);
+
+        ctx.strokeStyle = '#3d2314';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 20); ctx.lineTo(0, -22);
+        ctx.moveTo(-18, -6); ctx.lineTo(18, -6);
+        ctx.stroke();
+
+        ctx.fillStyle = '#141419';
+        ctx.beginPath();
+        ctx.moveTo(0, -14); ctx.lineTo(14, -4); ctx.lineTo(11, 18);
+        ctx.lineTo(5, 12); ctx.lineTo(0, 19); ctx.lineTo(-5, 12);
+        ctx.lineTo(-11, 18); ctx.lineTo(-14, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#d63031';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#2d3436';
+        ctx.beginPath();
+        ctx.moveTo(0, -25); ctx.lineTo(9, -13); ctx.lineTo(0, -7); ctx.lineTo(-9, -13);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ff1744';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ff1744';
+        ctx.shadowColor = '#ff1744';
+        ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.moveTo(-6, -15); ctx.lineTo(-2, -13); ctx.lineTo(-5, -12); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(6, -15); ctx.lineTo(2, -13); ctx.lineTo(5, -12); ctx.closePath(); ctx.fill();
+
+        ctx.restore();
+
+        ef.life -= 1;
+        if (ef.life <= 0) {
+          triggerShake(28);
+          criminalBombPool.play();
+
+          skillEffects.push({ type: 'GUNPOWDER_EXPLOSION', x: ef.x, y: ef.y, targetRadius: ef.radius, life: 30, maxLife: 30 });
+
+          for (let p = 0; p < 16; p++) {
+            const petalAngle = Math.random() * Math.PI * 2;
+            const petalSpd = Math.random() * 5 + 2;
+            skillEffects.push({
+              type: 'ROSE_PETAL',
+              x: ef.x,
+              y: ef.y,
+              vx: Math.cos(petalAngle) * petalSpd,
+              vy: Math.sin(petalAngle) * petalSpd,
+              angle: Math.random() * Math.PI * 2,
+              rotSpeed: (Math.random() - 0.5) * 0.2,
+              size: Math.random() * 5 + 3,
+              color: Math.random() < 0.6 ? '#ff3250' : '#ffd600',
+              life: 40,
+              maxLife: 40
+            });
+          }
+
+          const enemy = ef.target;
+          if (Math.hypot(enemy.x - ef.x, enemy.y - ef.y) <= ef.radius + enemy.radius) {
+            applyDamage(enemy, ef.damage);
+            addFloatingText(enemy.x, enemy.y - 18, `-${ef.damage}`, '#ff3344');
+          }
+        }
+      }
+      else if (ef.type === 'GUNPOWDER_EXPLOSION') {
+        // [수정] 김티비 버섯구름 감성: 반투명 빨간색 & 노란색 폭발
+        const progress = 1 - ef.life / ef.maxLife;
+        const targetR = ef.targetRadius || 115;
+        const r = targetR * Math.sin(progress * Math.PI * 0.5);
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        // 1. 반투명 빨강 외곽 충격파 링
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 52, 80, ${0.85 * (1 - progress)})`;
+        ctx.lineWidth = 6 * (1 - progress);
+        ctx.stroke();
+
+        // 2. 반투명 노랑 내각 충격파 링
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.65, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 214, 0, ${0.85 * (1 - progress)})`;
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.stroke();
+
+        // 3. 반투명 코어 그라데이션 (노랑 -> 빨강)
+        const coreR = r * 0.85;
+        if (coreR > 0) {
+          const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(1, coreR));
+          grad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * (1 - progress)})`);
+          grad.addColorStop(0.35, `rgba(255, 214, 0, ${0.75 * (1 - progress)})`);
+          grad.addColorStop(0.7, `rgba(255, 52, 80, ${0.6 * (1 - progress)})`);
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+          ctx.beginPath();
+          ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+
+        ctx.restore();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'BIG_EXPLOSION') {
+        // [수정] 공병은 대형 폭발: 반투명 빨간색 & 노란색 2중 충격파
+        const progress = 1 - ef.life / ef.maxLife;
+        const targetR = ef.targetRadius || 110;
+        const r = targetR * Math.sin(progress * Math.PI * 0.5);
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        // 1. 외곽 반투명 빨간색 링
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 52, 80, ${0.85 * (1 - progress)})`;
+        ctx.lineWidth = 6 * (1 - progress);
+        ctx.stroke();
+
+        // 2. 내각 반투명 노란색 링
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 214, 0, ${0.85 * (1 - progress)})`;
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.stroke();
+
+        // 3. 소프트 폭발 코어
+        const coreR = r * 0.85;
+        if (coreR > 0) {
+          const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(1, coreR));
+          grad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * (1 - progress)})`);
+          grad.addColorStop(0.3, `rgba(255, 214, 0, ${0.75 * (1 - progress)})`);
+          grad.addColorStop(0.7, `rgba(255, 52, 80, ${0.55 * (1 - progress)})`);
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+          ctx.beginPath();
+          ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+
+        // 4. 방사형 섬광 파동
+        for (let ray = 0; ray < 8; ray++) {
+          const rayAngle = (Math.PI / 4) * ray + progress * 0.4;
+          const rayLen = r * 1.05;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(rayAngle) * rayLen, Math.sin(rayAngle) * rayLen);
+          ctx.strokeStyle = ray % 2 === 0 ? `rgba(255, 214, 0, ${0.8 * (1 - progress)})` : `rgba(255, 52, 80, ${0.8 * (1 - progress)})`;
+          ctx.lineWidth = 3 * (1 - progress);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'ROSE_PETAL') {
+        ef.x += ef.vx;
+        ef.y += ef.vy;
+        ef.vx *= 0.95;
+        ef.vy *= 0.95;
+        ef.angle += ef.rotSpeed;
+
+        const progress = ef.life / ef.maxLife;
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+        ctx.rotate(ef.angle);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, ef.size * progress, ef.size * 0.5 * progress, 0, 0, Math.PI * 2);
+        ctx.fillStyle = ef.color;
+        ctx.shadowColor = ef.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.restore();
+
+        ef.life -= 1;
+      }
       else if (ef.type === 'SUBWOOFER_WAVE') {
         const progress = 1 - ef.life / ef.maxLife;
         const currentR = ef.radius + (ef.maxRadius - ef.radius) * progress;
@@ -499,35 +760,32 @@ function loop(now) {
         ctx.restore();
         ef.life -= 1;
       }
-      // ★ 원본 화려한 버섯구름 폭발 비주얼 완벽 복원 ★
       else if (ef.type === 'MUSHROOM_CLOUD') {
         const progress = 1 - ef.life / ef.maxLife;
-        ctx.save(); ctx.translate(ef.x, ef.y);
+        const scaleMult = ef.scale || 1.0;
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
 
-        // 하단 충격파 링
         ctx.beginPath();
-        ctx.ellipse(0, 0, 48 * progress + 8, 14 * progress + 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, (48 * progress + 8) * scaleMult, (14 * progress + 4) * scaleMult, 0, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 100, 0, ${1 - progress})`; ctx.lineWidth = 4; ctx.stroke();
 
-        // 버섯 기둥
-        const stemH = 42 * progress;
+        const stemH = 42 * progress * scaleMult;
         ctx.fillStyle = `rgba(255, 87, 34, ${0.9 * (1 - progress)})`;
         ctx.beginPath();
-        ctx.moveTo(-9 * (1 - progress), 0); ctx.lineTo(9 * (1 - progress), 0);
-        ctx.lineTo(4 * (1 - progress), -stemH); ctx.lineTo(-4 * (1 - progress), -stemH);
+        ctx.moveTo(-9 * (1 - progress) * scaleMult, 0); ctx.lineTo(9 * (1 - progress) * scaleMult, 0);
+        ctx.lineTo(4 * (1 - progress) * scaleMult, -stemH); ctx.lineTo(-4 * (1 - progress) * scaleMult, -stemH);
         ctx.closePath(); ctx.fill();
 
-        // 붉은 외곽 화염 캡
         const capY = -stemH;
-        const capR = 28 * Math.sin(progress * Math.PI);
+        const capR = 28 * Math.sin(progress * Math.PI) * scaleMult;
         ctx.fillStyle = `rgba(255, 52, 80, ${1 - progress})`;
-        ctx.beginPath(); ctx.arc(0, capY - 4, capR, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, capY - 4 * scaleMult, capR, 0, Math.PI * 2); ctx.fill();
 
-        // 노란 내부 핵심 화염 캡 (복구 완료)
         ctx.fillStyle = `rgba(255, 214, 0, ${1 - progress})`;
         ctx.beginPath();
-        ctx.arc(-capR * 0.45, capY - 7, capR * 0.55, 0, Math.PI * 2);
-        ctx.arc(capR * 0.45, capY - 7, capR * 0.55, 0, Math.PI * 2);
+        ctx.arc(-capR * 0.45, capY - 7 * scaleMult, capR * 0.55, 0, Math.PI * 2);
+        ctx.arc(capR * 0.45, capY - 7 * scaleMult, capR * 0.55, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
@@ -599,6 +857,10 @@ function loop(now) {
         ef.life -= 1;
         if (ef.life <= 0) {
           triggerShake(28);
+
+          // 공병은 버섯구름 톤 폭발 스폰
+          skillEffects.push({ type: 'BIG_EXPLOSION', x: ef.x, y: ef.y, targetRadius: ef.radius, life: 30, maxLife: 30 });
+
           [p1, p2].forEach(p => {
             if (p !== ef.owner && Math.hypot(p.x - ef.x, p.y - ef.y) <= ef.radius + p.radius) {
               applyDamage(p, ef.damage);
@@ -612,7 +874,6 @@ function loop(now) {
       if (ef.life <= 0) skillEffects.splice(i, 1);
     }
 
-    // 투사체 처리 및 복구된 김티비 궁극기 레이저 투사체(isRainbowLaser) 렌더링
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const proj = projectiles[i];
 
@@ -634,7 +895,76 @@ function loop(now) {
 
       proj.x += proj.vx; proj.y += proj.vy; proj.life -= 1;
 
-      if (proj.isBL) {
+      if (proj.isDagger) {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        ctx.rotate(Math.atan2(proj.vy, proj.vx));
+
+        ctx.shadowColor = '#c23616';
+        ctx.shadowBlur = 10;
+
+        ctx.strokeStyle = '#d2dae2';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(-13, 0, 2.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#2d3436';
+        ctx.fillRect(-11, -2, 7, 4);
+        ctx.strokeStyle = '#c23616';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-10, -2); ctx.lineTo(-8, 2);
+        ctx.moveTo(-7, -2); ctx.lineTo(-5, 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#c23616';
+        ctx.beginPath();
+        ctx.moveTo(-4, -5); ctx.lineTo(-2, -5); ctx.lineTo(-2, 5); ctx.lineTo(-4, 5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#f1f2f6';
+        ctx.beginPath();
+        ctx.moveTo(-2, -3.5);
+        ctx.lineTo(15, 0);
+        ctx.lineTo(-2, 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#a4b0be';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#c23616';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-2, 0); ctx.lineTo(13, 0);
+        ctx.stroke();
+
+        ctx.restore();
+
+        const dist = Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y);
+        if (dist < proj.target.radius + 6) {
+          applyDamage(proj.target, proj.damage);
+          addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
+
+          proj.target.skillCool = Math.max(0, proj.target.skillCool - (0.65 * 60 * proj.target.data.coolSpeed));
+
+          skillEffects.push({
+            type: 'COOLDOWN_ORB',
+            x: proj.target.x,
+            y: proj.target.y,
+            owner: proj.owner,
+            trailHistory: [],
+            life: 90,
+            maxLife: 90
+          });
+
+          projectiles.splice(i, 1);
+          continue;
+        }
+      }
+      else if (proj.isBL) {
         ctx.save(); ctx.translate(proj.x, proj.y);
         ctx.rotate(Math.atan2(proj.vy, proj.vx));
 
@@ -652,7 +982,6 @@ function loop(now) {
         ctx.fillText('BL', 0, 0);
         ctx.restore();
       }
-      // ★ 김티비 궁극기 무지개 난사 레이저 빔 복구 ★
       else if (proj.isRainbowLaser) {
         ctx.save();
         ctx.translate(proj.x, proj.y);
@@ -706,7 +1035,7 @@ function loop(now) {
         ctx.restore();
       }
 
-      if (Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y) < proj.target.radius + 6) {
+      if (!proj.isDagger && Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y) < proj.target.radius + 6) {
         applyDamage(proj.target, proj.damage);
         addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
         triggerShake(5);

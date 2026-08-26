@@ -36,9 +36,14 @@ export const gaeunLinePool = new SoundPool('sounds/gaeun_line.mp3', 3);
 export const gaeunCutPool = new SoundPool('sounds/gaeun_cut.mp3', 3);
 export const gaeunUltPool = new SoundPool('sounds/gaeun_ult.mp3', 2);
 
-// ★ 김건우 스킬 사운드 풀 추가 ★
-export const geonwooWavePool = new SoundPool('sounds/geonwoo_wave.mp3', 3);  // 저음 보이스 (기본스킬)
-export const geonwooSmokePool = new SoundPool('sounds/geonwoo_smoke.mp3', 3); // 전술 연막 (궁극기)
+// 김건우 스킬 사운드 풀
+export const geonwooWavePool = new SoundPool('sounds/geonwoo_wave.mp3', 3);
+export const geonwooSmokePool = new SoundPool('sounds/geonwoo_smoke.mp3', 3);
+
+// ★ 흉악범 전용 사운드 풀 ★
+export const criminalDaggerPool = new SoundPool('sounds/criminal_dagger.mp3', 3); // 단검 던지기
+export const criminalParryPool = new SoundPool('sounds/criminal_parry.mp3', 3);   // 반격 순간이동
+export const criminalBombPool = new SoundPool('sounds/criminal_bomb.mp3', 3);     // 허수아비 폭탄 폭발
 
 let lastBounceTime = 0;
 export function playBounceSfx() {

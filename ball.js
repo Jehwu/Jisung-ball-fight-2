@@ -3,7 +3,8 @@ import { invertColor } from './effects.js';
 import { 
   parkShootPool, parkUltChargePool, parkUltShootPool, 
   gongSkillPool, kimEatPool, kimSpitPool, gaeunLinePool, gaeunUltPool,
-  geonwooWavePool, geonwooSmokePool
+  geonwooWavePool, geonwooSmokePool,
+  criminalDaggerPool
 } from './audio.js';
 
 export class Ball {
@@ -50,6 +51,8 @@ export class Ball {
     this.scrollEffectTimer = 0;
     this.scrollDmgTimer = 0;
     this.scrollUltDmg = 45;
+
+    this.counterStanceTimer = 0;
   }
 
   init(charData, isP2 = false, isMirror = false) {
@@ -95,6 +98,8 @@ export class Ball {
     this.scrollDmgTimer = 0;
     this.scrollUltDmg = 45;
 
+    this.counterStanceTimer = 0;
+
     const charSpeed = this.data ? (this.data.speed || 1.5) : 1.5;
     const randomAngle = Math.random() * Math.PI * 2;
     const baseSpeed = 0.9 * charSpeed;
@@ -105,6 +110,10 @@ export class Ball {
 
   update(target, gameState, applyDamage, addFloatingText, skillEffects, projectiles, ARENA_SIZE, triggerShake) {
     if (gameState !== 'PLAYING') return;
+
+    if (this.counterStanceTimer > 0) {
+      this.counterStanceTimer -= 1;
+    }
 
     if (this.eyeStacks.length > 0 && this.hp > 0) {
       this.eyeDmgTimer += 1;
@@ -465,16 +474,18 @@ export class Ball {
       }
     }
 
-    if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst && this.skillCool < 100) {
-      this.skillCool += this.data.coolSpeed;
+    if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst) {
+      if (this.skillCool < 100) {
+        this.skillCool += this.data.coolSpeed;
+      }
       if (this.skillCool >= 100) {
         this.skillCool = 100;
-        this.castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake);
+        this.castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText);
       }
     }
   }
 
-  castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake) {
+  castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText) {
     this.skillCool = 0;
     const isUltReady = this.ultCharge >= this.data.maxUltCharge;
 
@@ -616,7 +627,6 @@ export class Ball {
         triggerShake(22);
         geonwooSmokePool.play();
 
-        // 연막 개수를 2개로 축소 (1개는 적 직격, 1개는 맵 전체 랜덤)
         for (let k = 0; k < 2; k++) {
           let rx, ry;
 
@@ -657,7 +667,7 @@ export class Ball {
           x: this.x,
           y: this.y,
           radius: 10,
-          maxRadius: 111.32, // 기본 스킬 범위 추가 10% 증가 적용
+          maxRadius: 111.32,
           owner: this,
           target: target,
           color: this.color,
@@ -665,6 +675,34 @@ export class Ball {
           life: 22,
           maxLife: 22,
           hit: false
+        });
+      }
+    } else if (this.data.basic.type === 'PICKPOCKET_DAGGER') {
+      if (isUltReady) {
+        this.ultCharge = 0;
+        this.counterStanceTimer = 180;
+        triggerShake(8);
+      } else {
+        this.ultCharge++;
+        triggerShake(4);
+
+        const baseAngle = Math.atan2(target.y - this.y, target.x - this.x);
+        [-0.08, 0.08].forEach((offsetAngle, idx) => {
+          setTimeout(() => {
+            criminalDaggerPool.play(); // 단검을 던질 때마다 사운드 1회씩 재생 (총 2회)
+            projectiles.push({
+              x: this.x,
+              y: this.y,
+              vx: Math.cos(baseAngle + offsetAngle) * 9.5,
+              vy: Math.sin(baseAngle + offsetAngle) * 9.5,
+              damage: 7,
+              target: target,
+              owner: this,
+              color: this.color,
+              isDagger: true,
+              life: 90
+            });
+          }, idx * 80);
         });
       }
     }
@@ -735,13 +773,77 @@ export class Ball {
     ctx.save();
     
     if (this.isEatable) {
+      ctx.save();
+      const rotAngle = (Date.now() / 150) % (Math.PI * 2);
+      
+      const grad = ctx.createRadialGradient(this.x, this.y, this.radius * 0.5, this.x, this.y, this.radius + 18);
+      grad.addColorStop(0, 'rgba(255, 51, 68, 0.55)');
+      grad.addColorStop(0.6, 'rgba(120, 10, 25, 0.38)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius + 7, 0, Math.PI * 2);
-      ctx.strokeStyle = '#ff3344';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([4, 4]);
+      ctx.arc(this.x, this.y, this.radius + 18, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.translate(this.x, this.y);
+      ctx.rotate(rotAngle);
+      
+      ctx.fillStyle = '#ff1744';
+      const spikes = 8;
+      for (let i = 0; i < spikes; i++) {
+        const a = (Math.PI * 2 / spikes) * i;
+        const outerR = this.radius + 14 + Math.sin(Date.now() / 80 + i) * 2;
+        const innerR = this.radius + 4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * outerR, Math.sin(a) * outerR);
+        ctx.lineTo(Math.cos(a + 0.22) * innerR, Math.sin(a + 0.22) * innerR);
+        ctx.lineTo(Math.cos(a - 0.22) * innerR, Math.sin(a - 0.22) * innerR);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = '#d50000';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#ff1744';
+      ctx.shadowBlur = 10;
       ctx.stroke();
-      ctx.setLineDash([]);
+
+      ctx.restore();
+    }
+
+    if (this.counterStanceTimer > 0) {
+      ctx.save();
+      const rotAngle = (Date.now() / 700) % (Math.PI * 2);
+      ctx.translate(this.x, this.y);
+      ctx.rotate(rotAngle);
+
+      ctx.strokeStyle = '#c23616';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#c23616';
+      ctx.shadowBlur = 12;
+
+      const ringR = this.radius + 8;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI / 3) * k;
+        const outerR = ringR + 6;
+        const innerR = ringR - 2;
+        ctx.lineTo(Math.cos(a) * outerR, Math.sin(a) * outerR);
+        ctx.lineTo(Math.cos(a + Math.PI / 6) * innerR, Math.sin(a + Math.PI / 6) * innerR);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 71, 87, 0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.restore();
     }
 
     if (this.ultCharge >= this.data.maxUltCharge) {
@@ -861,7 +963,7 @@ export class Ball {
       ctx.beginPath();
       ctx.moveTo(-lineEnd, 0); ctx.lineTo(-lineStart, 0);
       ctx.moveTo(lineStart, 0); ctx.lineTo(lineEnd, 0);
-      ctx.moveTo(0, lineStart); ctx.lineTo(0, lineEnd);
+      ctx.moveTo(0, -lineEnd); ctx.lineTo(0, -lineStart);
       ctx.moveTo(0, lineStart); ctx.lineTo(0, lineEnd);
       ctx.stroke();
 

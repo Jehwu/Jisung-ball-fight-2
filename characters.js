@@ -70,11 +70,24 @@ export const CHAR_DB = {
     color: '#8c7ae6',
     hp: 250,
     speed: 1.5625,
-    coolSpeed: 0.44, // 쿨타임 3.8초
+    coolSpeed: 0.44,
     maxUltCharge: 2,
     stats: { atk: 58, def: 77, spd: 86, cool: 97, ult: 83, utl: 59 },
     desc: '저음 서브우퍼 충격파로 적을 튕겨내고 전술 암전 구역을 생성합니다.',
     basic: { name: '저음 보이스', damage: 18, type: 'SUBWOOFER' },
-    ult: { name: '전술 연막 활성화', damage: 40, type: 'NIGHTFALL_ZONE' } // 궁 데미지 40
+    ult: { name: '전술 연막 활성화', damage: 40, type: 'NIGHTFALL_ZONE' }
+  },
+  CRIMINAL: {
+    name: '흉악범',
+    emoji: '🌹',
+    color: '#c23616',
+    hp: 250,
+    speed: 1.5,
+    coolSpeed: 0.42,
+    maxUltCharge: 3,
+    stats: { atk: 85, def: 55, spd: 70, cool: 75, ult: 85, utl: 90 },
+    desc: '단검 2연투척(7x2뎀)으로 쿨타임을 0.65초 강탈하고, 반격 자세 시 데미지 완전 무효화 후 범위를 15% 확장한 허수아비 폭탄을 남깁니다.',
+    basic: { name: '단검 던지기', damage: 7, type: 'PICKPOCKET_DAGGER' },
+    ult: { name: '흉악범의 피날레', damage: 35, type: 'FAKE_ESCAPE' }
   }
 };
