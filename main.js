@@ -471,7 +471,6 @@ function loop(now) {
         }
       }
       else if (ef.type === 'GUNPOWDER_EXPLOSION') {
-        // [수정] 김티비 버섯구름 감성: 반투명 빨간색 & 노란색 폭발
         const progress = 1 - ef.life / ef.maxLife;
         const targetR = ef.targetRadius || 115;
         const r = targetR * Math.sin(progress * Math.PI * 0.5);
@@ -479,21 +478,18 @@ function loop(now) {
         ctx.save();
         ctx.translate(ef.x, ef.y);
 
-        // 1. 반투명 빨강 외곽 충격파 링
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 52, 80, ${0.85 * (1 - progress)})`;
         ctx.lineWidth = 6 * (1 - progress);
         ctx.stroke();
 
-        // 2. 반투명 노랑 내각 충격파 링
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.65, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 214, 0, ${0.85 * (1 - progress)})`;
         ctx.lineWidth = 4 * (1 - progress);
         ctx.stroke();
 
-        // 3. 반투명 코어 그라데이션 (노랑 -> 빨강)
         const coreR = r * 0.85;
         if (coreR > 0) {
           const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(1, coreR));
@@ -512,7 +508,6 @@ function loop(now) {
         ef.life -= 1;
       }
       else if (ef.type === 'BIG_EXPLOSION') {
-        // [수정] 공병은 대형 폭발: 반투명 빨간색 & 노란색 2중 충격파
         const progress = 1 - ef.life / ef.maxLife;
         const targetR = ef.targetRadius || 110;
         const r = targetR * Math.sin(progress * Math.PI * 0.5);
@@ -520,21 +515,18 @@ function loop(now) {
         ctx.save();
         ctx.translate(ef.x, ef.y);
 
-        // 1. 외곽 반투명 빨간색 링
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 52, 80, ${0.85 * (1 - progress)})`;
         ctx.lineWidth = 6 * (1 - progress);
         ctx.stroke();
 
-        // 2. 내각 반투명 노란색 링
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 214, 0, ${0.85 * (1 - progress)})`;
         ctx.lineWidth = 4 * (1 - progress);
         ctx.stroke();
 
-        // 3. 소프트 폭발 코어
         const coreR = r * 0.85;
         if (coreR > 0) {
           const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(1, coreR));
@@ -549,7 +541,6 @@ function loop(now) {
           ctx.fill();
         }
 
-        // 4. 방사형 섬광 파동
         for (let ray = 0; ray < 8; ray++) {
           const rayAngle = (Math.PI / 4) * ray + progress * 0.4;
           const rayLen = r * 1.05;
@@ -858,7 +849,6 @@ function loop(now) {
         if (ef.life <= 0) {
           triggerShake(28);
 
-          // 공병은 버섯구름 톤 폭발 스폰
           skillEffects.push({ type: 'BIG_EXPLOSION', x: ef.x, y: ef.y, targetRadius: ef.radius, life: 30, maxLife: 30 });
 
           [p1, p2].forEach(p => {
@@ -1028,10 +1018,37 @@ function loop(now) {
         });
       }
       else if (proj.isBullet) {
-        ctx.save(); ctx.translate(proj.x, proj.y);
-        ctx.rotate(Math.atan2(proj.vy, proj.vx));
-        ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-4, 0);
-        ctx.strokeStyle = proj.color || '#ff3344'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        const bulletAngle = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(bulletAngle);
+
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(-4, 0);
+        ctx.strokeStyle = '#ff3344';
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#ff3344';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(-6, -2.5, 8, 5);
+        ctx.strokeStyle = '#d35400';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(-6, -2.5, 8, 5);
+
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.moveTo(2, -2.5);
+        ctx.lineTo(9, 0);
+        ctx.lineTo(2, 2.5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-4, -1.2, 7, 1.2);
+
         ctx.restore();
       }
 

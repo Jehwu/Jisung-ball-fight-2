@@ -474,6 +474,7 @@ export class Ball {
       }
     }
 
+    // 쿨타임 충전 (0.65 배율 제거 후 coolSpeed 정수치대로 프레임마다 누적)
     if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst) {
       if (this.skillCool < 100) {
         this.skillCool += this.data.coolSpeed;
@@ -488,8 +489,9 @@ export class Ball {
   castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText) {
     this.skillCool = 0;
     const isUltReady = this.ultCharge >= this.data.maxUltCharge;
+    const skillType = this.data.basic.type;
 
-    if (this.data.basic.type === 'BL_THROW') {
+    if (skillType === 'BL_THROW') {
       if (isUltReady) {
         this.ultCharge = 0;
         this.isEatable = true;
@@ -503,8 +505,8 @@ export class Ball {
         projectiles.push({
           x: this.x,
           y: this.y,
-          vx: Math.cos(angle) * 4.2,
-          vy: Math.sin(angle) * 4.2,
+          vx: Math.cos(angle) * 5.5,
+          vy: Math.sin(angle) * 5.5,
           damage: 15,
           target: target,
           color: this.color,
@@ -512,7 +514,7 @@ export class Ball {
           life: 140
         });
       }
-    } else if (this.data.basic.type === 'DASH_COMPLAINT') {
+    } else if (skillType === 'DASH_COMPLAINT') {
       if (isUltReady) {
         this.ultCharge = 0;
         triggerShake(10);
@@ -520,7 +522,7 @@ export class Ball {
           type: 'INSANITY_WARN',
           x: ARENA_SIZE / 2,
           y: ARENA_SIZE / 2,
-          radius: 106,
+          radius: 110,
           life: 120,
           maxLife: 120,
           owner: this,
@@ -537,7 +539,7 @@ export class Ball {
         this.vx = Math.cos(angle) * 5.25;
         this.vy = Math.sin(angle) * 5.25;
       }
-    } else if (this.data.basic.type === 'SNIPER_BULLET') {
+    } else if (skillType === 'SNIPER_SHOT' || skillType === 'SNIPER_BULLET') {
       this.isAiming = true;
       this.aimTimer = 120;
       this.aimTarget = target;
@@ -550,7 +552,7 @@ export class Ball {
         this.ultCharge++;
         this.isUltAim = false;
       }
-    } else if (this.data.basic.type === 'POOP_THROW') {
+    } else if (skillType === 'POOP_BOMB' || skillType === 'POOP_THROW') {
       if (isUltReady) {
         this.ultCharge = 0;
         this.isFurryBurst = true;
@@ -577,7 +579,7 @@ export class Ball {
           life: 100
         });
       }
-    } else if (this.data.basic.type === 'CUT_DIVIDE') {
+    } else if (skillType === 'SKETCH_CUT' || skillType === 'CUT_DIVIDE') {
       if (isUltReady) {
         this.ultCharge = 0;
         triggerShake(20);
@@ -621,7 +623,7 @@ export class Ball {
           triggered: false
         });
       }
-    } else if (this.data.basic.type === 'SUBWOOFER') {
+    } else if (skillType === 'LOW_VOICE' || skillType === 'SUBWOOFER') {
       if (isUltReady) {
         this.ultCharge = 0;
         triggerShake(22);
@@ -677,7 +679,7 @@ export class Ball {
           hit: false
         });
       }
-    } else if (this.data.basic.type === 'PICKPOCKET_DAGGER') {
+    } else if (skillType === 'PICKPOCKET_DAGGER' || skillType === 'CRIMINAL_DAGGER') {
       if (isUltReady) {
         this.ultCharge = 0;
         this.counterStanceTimer = 180;
@@ -689,7 +691,7 @@ export class Ball {
         const baseAngle = Math.atan2(target.y - this.y, target.x - this.x);
         [-0.08, 0.08].forEach((offsetAngle, idx) => {
           setTimeout(() => {
-            criminalDaggerPool.play(); // 단검을 던질 때마다 사운드 1회씩 재생 (총 2회)
+            criminalDaggerPool.play();
             projectiles.push({
               x: this.x,
               y: this.y,
