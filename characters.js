@@ -50,7 +50,7 @@ export const CHAR_DB = {
     speed: 1.5625,
     coolSpeed: 0.40,
     maxUltCharge: 3,
-    stats: { atk: 68, def: 53, spd: 64, cool: 83, ult: 86, utl: 100 },
+    stats: { atk: 68, def: 53, spd: 59, cool: 73, ult: 86, utl: 100 },
     desc: '똥 트랩을 설치하고 퍼리 버스트로 난사 공격을 퍼붓습니다.',
     basic: { name: '똥먹방', damage: 20, type: 'POOP_THROW' },
     ult: { name: 'SSR급 퍼리 니케샷', damage: 40, type: 'FURRY_BURST' }
@@ -64,7 +64,7 @@ export const CHAR_DB = {
     speed: 1.5,
     coolSpeed: 0.37,
     maxUltCharge: 3,
-    stats: { atk: 65, def: 65, spd: 71, cool: 84, ult: 87, utl: 61 },
+    stats: { atk: 57, def: 60, spd: 74, cool: 81, ult: 74, utl: 67 },
     desc: '선 가르기 공간 절단과 웹툰 스크롤 영역으로 적을 압박합니다.',
     basic: { name: '스케치', damage: 15, type: 'CUT_DIVIDE' },
     ult: { name: 'ㄹㅈㄷ 정주행', damage: 45, type: 'WEBTOON_SCROLL' }
@@ -78,7 +78,7 @@ export const CHAR_DB = {
     speed: 1.5625,
     coolSpeed: 0.44,
     maxUltCharge: 2,
-    stats: { atk: 58, def: 77, spd: 86, cool: 97, ult: 83, utl: 59 },
+    stats: { atk: 67, def: 60, spd: 72, cool: 89, ult: 76, utl: 87 },
     desc: '저음 서브우퍼 충격파로 적을 튕겨내고 전술 암전 구역을 생성합니다.',
     basic: { name: '저음 보이스', damage: 18, type: 'SUBWOOFER' },
     ult: { name: '전술 연막 활성화', damage: 40, type: 'NIGHTFALL_ZONE' }
@@ -92,7 +92,7 @@ export const CHAR_DB = {
     speed: 1.5,
     coolSpeed: 0.42,
     maxUltCharge: 3,
-    stats: { atk: 85, def: 55, spd: 70, cool: 75, ult: 85, utl: 90 },
+    stats: { atk: 49, def: 53, spd: 72, cool: 100, ult: 71, utl: 93 },
     desc: '단검 2연투척으로 쿨타임을 강탈하고, 반격 자세 후 허수아비 폭탄을 남깁니다.',
     basic: { name: '단검 던지기', damage: 7, type: 'PICKPOCKET_DAGGER' },
     ult: { name: '흉악범의 피날레', damage: 35, type: 'FAKE_ESCAPE' }
@@ -106,7 +106,7 @@ export const CHAR_DB = {
     speed: 1.5,
     coolSpeed: 0,
     maxUltCharge: 12,
-    stats: { atk: 98, def: 75, spd: 85, cool: 100, ult: 100, utl: 90 },
+    stats: { atk: 75, def: 51, spd: 79, cool: 100, ult: 100, utl: 86 },
     desc: '상시 발동 오라오라 구역(2.8배 확장, 2뎀/0.15초)으로 적을 타격하며, 12타 적중 시 4초간 시간을 멈추고 스탠드 화살(30뎀)을 던집니다.',
     basic: { name: '오라오라 러쉬', damage: 2, type: 'ORA_AURA' },
     ult: { name: '스타 박래티나: 더 월드', damage: 30, type: 'TIME_STOP_WORLD' }
