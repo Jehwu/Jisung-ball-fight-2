@@ -4,7 +4,7 @@ import { Ball } from './ball.js';
 import { 
   bgm, clickPool, sofaDropPool, parkShootPool, poopTrapPool, poopEatPool, 
   gaeunCutPool, playBounceSfx, playBGM, stopBGM,
-  criminalParryPool, criminalBombPool
+  criminalParryPool, criminalBombPool, hitPool
 } from './audio.js';
 import { distToSegment, drawHexagonFrame } from './effects.js';
 
@@ -96,6 +96,10 @@ function applyDamage(target, amount) {
       maxLife: 120
     });
     return;
+  }
+
+  if (amount > 0) {
+    hitPool.play();
   }
 
   target.hp = Math.max(0, target.hp - amount);

@@ -40,10 +40,17 @@ export const gaeunUltPool = new SoundPool('sounds/gaeun_ult.mp3', 2);
 export const geonwooWavePool = new SoundPool('sounds/geonwoo_wave.mp3', 3);
 export const geonwooSmokePool = new SoundPool('sounds/geonwoo_smoke.mp3', 3);
 
-// ★ 흉악범 전용 사운드 풀 ★
+// 흉악범 전용 사운드 풀
 export const criminalDaggerPool = new SoundPool('sounds/criminal_dagger.mp3', 3); // 단검 던지기
 export const criminalParryPool = new SoundPool('sounds/criminal_parry.mp3', 3);   // 반격 순간이동
 export const criminalBombPool = new SoundPool('sounds/criminal_bomb.mp3', 3);     // 허수아비 폭탄 폭발
+
+// 대거 추가된 사운드 풀
+export const kimThrowPool = new SoundPool('sounds/kim_throw.mp3', 3);  // 김민채 기본스킬 투사체
+export const gongUltPool = new SoundPool('sounds/gong_ult.mp3', 2);    // 공병은 궁 발동시
+export const parkAimPool = new SoundPool('sounds/park_aim.mp3', 3);    // 박지성 기본스킬 조준
+export const poopThrowPool = new SoundPool('sounds/poop_throw.mp3', 3); // 김티비 똥 던질때
+export const hitPool = new SoundPool('sounds/hit.mp3', 5);             // 전체 공 피해 피격음
 
 let lastBounceTime = 0;
 export function playBounceSfx() {

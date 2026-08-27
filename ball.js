@@ -4,7 +4,8 @@ import {
   parkShootPool, parkUltChargePool, parkUltShootPool, 
   gongSkillPool, kimEatPool, kimSpitPool, gaeunLinePool, gaeunUltPool,
   geonwooWavePool, geonwooSmokePool,
-  criminalDaggerPool
+  criminalDaggerPool,
+  kimThrowPool, gongUltPool, parkAimPool, poopThrowPool
 } from './audio.js';
 
 export class Ball {
@@ -500,6 +501,7 @@ export class Ball {
       } else {
         this.ultCharge++;
         triggerShake(5);
+        kimThrowPool.play();
 
         const angle = Math.atan2(target.y - this.y, target.x - this.x);
         projectiles.push({
@@ -518,6 +520,7 @@ export class Ball {
       if (isUltReady) {
         this.ultCharge = 0;
         triggerShake(10);
+        gongUltPool.play();
         skillEffects.push({
           type: 'INSANITY_WARN',
           x: ARENA_SIZE / 2,
@@ -551,6 +554,7 @@ export class Ball {
       } else {
         this.ultCharge++;
         this.isUltAim = false;
+        parkAimPool.play();
       }
     } else if (skillType === 'POOP_BOMB' || skillType === 'POOP_THROW') {
       if (isUltReady) {
@@ -562,6 +566,7 @@ export class Ball {
         triggerShake(18);
       } else {
         triggerShake(4);
+        poopThrowPool.play();
         const targetX = Math.random() * (ARENA_SIZE - 80) + 40;
         const targetY = Math.random() * (ARENA_SIZE - 80) + 40;
 
