@@ -193,6 +193,9 @@ export class Ball {
   update(target, gameState, applyDamage, addFloatingText, skillEffects, projectiles, ARENA_SIZE, triggerShake) {
     if (gameState !== 'PLAYING') return;
 
+    // 먹힌 상태일 때는 오라/쿨타임/궁극기 차징/움직임 포함 모든 동작 완전 정지
+    if (this.isEaten) return;
+
     if (target.timeStopTimer > 0) {
       return;
     }
@@ -576,8 +579,6 @@ export class Ball {
       }
       return;
     }
-
-    if (this.isEaten) return;
 
     if (this.isDashing) {
       let currentAngle = Math.atan2(this.vy, this.vx);
