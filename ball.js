@@ -1,12 +1,79 @@
 import { handleWallBounce } from './physics.js';
-import { invertColor } from './effects.js';
 import { 
   parkShootPool, parkUltChargePool, parkUltShootPool, 
   gongSkillPool, kimEatPool, kimSpitPool, gaeunLinePool, gaeunUltPool,
   geonwooWavePool, geonwooSmokePool,
   criminalDaggerPool,
-  kimThrowPool, gongUltPool, parkAimPool, poopThrowPool
+  kimThrowPool, gongUltPool, parkAimPool, poopThrowPool,
+  kujoPunchPool, timeStopChargePool, arrowThrowPool
 } from './audio.js';
+
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, fillColor, strokeColor) {
+  let rot = (Math.PI / 2) * 3;
+  let step = Math.PI / spikes;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerRadius);
+  for (let i = 0; i < spikes; i++) {
+    let x = cx + Math.cos(rot) * outerRadius;
+    let y = cy + Math.sin(rot) * outerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+
+    x = cx + Math.cos(rot) * innerRadius;
+    y = cy + Math.sin(rot) * innerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+  }
+  ctx.lineTo(cx, cy - outerRadius);
+  ctx.closePath();
+
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  }
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawStarPlatinumArm(ctx, x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  ctx.fillStyle = '#5f27cd';
+  ctx.beginPath();
+  ctx.ellipse(-12, 0, 12, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillRect(-5, -7, 3, 14);
+
+  ctx.fillStyle = '#009432';
+  ctx.fillRect(-2, -7, 14, 14);
+  ctx.strokeStyle = '#006266';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-2, -7, 14, 14);
+
+  ctx.fillStyle = '#f1c40f';
+  const studs = [
+    {x: 2, y: -4}, {x: 2, y: 0}, {x: 2, y: 4},
+    {x: 7, y: -4}, {x: 7, y: 0}, {x: 7, y: 4},
+    {x: 11, y: 0}
+  ];
+  studs.forEach(s => {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
 
 export class Ball {
   constructor(x, y, radius) {
@@ -54,12 +121,19 @@ export class Ball {
     this.scrollUltDmg = 45;
 
     this.counterStanceTimer = 0;
+
+    this.oraTimer = 0;
+    this.oraFists = [];
+    this.timeStopChargeTimer = 0;
+    this.timeStopTimer = 0;
+    this.deferredDamage = 0;
+    this.spearThrown = false;
   }
 
   init(charData, isP2 = false, isMirror = false) {
     this.data = charData;
     this.isMirrorP2 = (isP2 && isMirror);
-    this.color = this.isMirrorP2 ? invertColor(charData.color) : charData.color;
+    this.color = (this.isMirrorP2 && charData.altColor) ? charData.altColor : charData.color;
     this.maxHp = charData.hp || 250;
     this.reset();
   }
@@ -101,6 +175,13 @@ export class Ball {
 
     this.counterStanceTimer = 0;
 
+    this.oraTimer = 0;
+    this.oraFists = [];
+    this.timeStopChargeTimer = 0;
+    this.timeStopTimer = 0;
+    this.deferredDamage = 0;
+    this.spearThrown = false;
+
     const charSpeed = this.data ? (this.data.speed || 1.5) : 1.5;
     const randomAngle = Math.random() * Math.PI * 2;
     const baseSpeed = 0.9 * charSpeed;
@@ -111,6 +192,126 @@ export class Ball {
 
   update(target, gameState, applyDamage, addFloatingText, skillEffects, projectiles, ARENA_SIZE, triggerShake) {
     if (gameState !== 'PLAYING') return;
+
+    if (target.timeStopTimer > 0) {
+      return;
+    }
+
+    if (this.data && this.data.basic.type === 'ORA_AURA') {
+      const auraRadius = this.radius * 2.8;
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+
+      this.oraTimer++;
+      if (this.oraTimer >= 9) { // 0.15초 간격
+        this.oraTimer = 0;
+
+        if (dist <= auraRadius + target.radius) {
+          kujoPunchPool.play();
+
+          const baseAngle = Math.atan2(target.y - this.y, target.x - this.x);
+          const perpAngle = baseAngle + Math.PI / 2;
+          
+          const forwardOffset = dist * (0.2 + Math.random() * 0.6);
+          const sideOffset = (Math.random() - 0.5) * 28;
+
+          const fx = this.x + Math.cos(baseAngle) * forwardOffset + Math.cos(perpAngle) * sideOffset;
+          const fy = this.y + Math.sin(baseAngle) * forwardOffset + Math.sin(perpAngle) * sideOffset;
+          const punchAngle = Math.atan2(target.y - fy, target.x - fx);
+
+          this.oraFists.push({
+            x: fx,
+            y: fy,
+            angle: punchAngle,
+            progress: 0,
+            maxLife: 10
+          });
+
+          if (this.timeStopTimer > 0) {
+            target.deferredDamage += 2;
+            addFloatingText(target.x + (Math.random() - 0.5) * 10, target.y - 15, `2`, '#a55eea');
+          } else {
+            applyDamage(target, 2);
+            addFloatingText(target.x + (Math.random() - 0.5) * 10, target.y - 15, `-2`, '#ff3344');
+          }
+          triggerShake(3);
+
+          if (this.timeStopTimer <= 0 && this.timeStopChargeTimer <= 0) {
+            this.ultCharge++;
+            if (this.ultCharge >= this.data.maxUltCharge) {
+              this.ultCharge = 0;
+              this.timeStopChargeTimer = 120; // 2초 차징 시작
+              timeStopChargePool.play();
+            }
+          }
+        }
+      }
+
+      if (this.timeStopChargeTimer > 0) {
+        this.timeStopChargeTimer--;
+        triggerShake(2);
+
+        if (this.timeStopChargeTimer % 10 === 0) {
+          skillEffects.push({
+            type: 'CHARGE_PULSE',
+            x: this.x,
+            y: this.y,
+            radius: 8,
+            maxRadius: 50,
+            color: '#f1c40f',
+            life: 15
+          });
+        }
+
+        if (this.timeStopChargeTimer === 0) {
+          this.timeStopTimer = 240; // 4초 정지
+          this.spearThrown = false;
+          triggerShake(25);
+
+          skillEffects.push({
+            type: 'TIME_STOP_WAVE',
+            x: this.x,
+            y: this.y,
+            radius: 10,
+            maxRadius: 420,
+            life: 35,
+            maxLife: 35
+          });
+        }
+      }
+
+      if (this.timeStopTimer > 0) {
+        this.timeStopTimer--;
+
+        if (this.timeStopTimer === 180 && !this.spearThrown) {
+          this.spearThrown = true;
+          arrowThrowPool.play();
+          triggerShake(15);
+
+          const angle = Math.atan2(target.y - this.y, target.x - this.x);
+          projectiles.push({
+            x: this.x,
+            y: this.y,
+            vx: Math.cos(angle) * 5.0,
+            vy: Math.sin(angle) * 5.0,
+            damage: 30,
+            target: target,
+            color: '#f1c40f',
+            isStandArrow: true,
+            owner: this,
+            life: 140
+          });
+        }
+
+        if (this.timeStopTimer === 0) {
+          triggerShake(20);
+          if (target.deferredDamage > 0) {
+            applyDamage(target, target.deferredDamage);
+            addFloatingText(target.x, target.y - 25, `-${target.deferredDamage}`, '#ff3344');
+            target.deferredDamage = 0;
+          }
+        }
+      }
+    }
 
     if (this.counterStanceTimer > 0) {
       this.counterStanceTimer -= 1;
@@ -475,8 +676,7 @@ export class Ball {
       }
     }
 
-    // 쿨타임 충전 (0.65 배율 제거 후 coolSpeed 정수치대로 프레임마다 누적)
-    if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst) {
+    if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst && this.data.coolSpeed > 0) {
       if (this.skillCool < 100) {
         this.skillCool += this.data.coolSpeed;
       }
@@ -779,6 +979,64 @@ export class Ball {
 
     ctx.save();
     
+    if (this.data && this.data.basic.type === 'ORA_AURA' && this.hp > 0) {
+      const auraR = this.radius * 2.8;
+
+      ctx.save();
+      
+      const grad = ctx.createRadialGradient(this.x, this.y, this.radius, this.x, this.y, auraR);
+      grad.addColorStop(0, 'rgba(95, 39, 205, 0.35)');
+      grad.addColorStop(0.7, 'rgba(156, 136, 255, 0.18)');
+      grad.addColorStop(1, 'rgba(95, 39, 205, 0)');
+      
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, auraR, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      const rotAngle = (Date.now() / 600) % (Math.PI * 2);
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(rotAngle);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, auraR, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(156, 136, 255, 0.85)';
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([]);
+      ctx.shadowColor = '#9c88ff';
+      ctx.shadowBlur = 12;
+      ctx.stroke();
+
+      drawStar(ctx, 0, 0, 5, auraR * 0.72, auraR * 0.28, 'rgba(241, 196, 15, 0.18)', 'rgba(241, 196, 15, 0.75)');
+
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, auraR, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(95, 39, 205, 0.5)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.restore();
+
+      for (let i = this.oraFists.length - 1; i >= 0; i--) {
+        const fist = this.oraFists[i];
+        fist.progress += 1;
+        const p = fist.progress / fist.maxLife;
+        const reach = Math.sin(p * Math.PI) * 16;
+
+        const fx = fist.x + Math.cos(fist.angle) * reach;
+        const fy = fist.y + Math.sin(fist.angle) * reach;
+
+        drawStarPlatinumArm(ctx, fx, fy, fist.angle);
+
+        if (fist.progress >= fist.maxLife) {
+          this.oraFists.splice(i, 1);
+        }
+      }
+    }
+
     if (this.isEatable) {
       ctx.save();
       const rotAngle = (Date.now() / 150) % (Math.PI * 2);

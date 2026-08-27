@@ -4,7 +4,7 @@ import { Ball } from './ball.js';
 import { 
   bgm, clickPool, sofaDropPool, parkShootPool, poopTrapPool, poopEatPool, 
   gaeunCutPool, playBounceSfx, playBGM, stopBGM,
-  criminalParryPool, criminalBombPool, hitPool
+  criminalParryPool, criminalBombPool, hitPool, unlockAudioContext
 } from './audio.js';
 import { distToSegment, drawHexagonFrame } from './effects.js';
 
@@ -280,7 +280,7 @@ function loop(now) {
 
   if (gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'GAMEOVER') {
     if (p1.isFurryBurst || p2.isFurryBurst) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
     }
 
@@ -353,6 +353,28 @@ function loop(now) {
         ctx.fill();
         ef.life -= 1;
       } 
+      else if (ef.type === 'TIME_STOP_WAVE') {
+        const progress = 1 - ef.life / ef.maxLife;
+        const currentR = ef.radius + (ef.maxRadius - ef.radius) * Math.pow(progress, 0.7);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, currentR, 0, Math.PI * 2);
+        ctx.strokeStyle = '#9c88ff';
+        ctx.lineWidth = 10 * (1 - progress);
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 24 * (1 - progress);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, currentR * 0.85, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 3.5 * (1 - progress);
+        ctx.stroke();
+
+        ctx.restore();
+        ef.life -= 1;
+      }
       else if (ef.type === 'COOLDOWN_ORB') {
         ef.x += (ef.owner.x - ef.x) * 0.15;
         ef.y += (ef.owner.y - ef.y) * 0.15;
@@ -889,7 +911,91 @@ function loop(now) {
 
       proj.x += proj.vx; proj.y += proj.vy; proj.life -= 1;
 
-      if (proj.isDagger) {
+      if (proj.isStandArrow) {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        const arrowAngle = Math.atan2(proj.vy, proj.vx);
+        ctx.rotate(arrowAngle);
+
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 12;
+
+        ctx.fillStyle = '#bdc3c7';
+        ctx.strokeStyle = '#7f8c8d';
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(-28, 0); ctx.lineTo(-38, -9); ctx.lineTo(-32, 0); ctx.lineTo(-38, 9);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-28, 0); ctx.lineTo(-38, -5); ctx.lineTo(-32, 0); ctx.lineTo(-38, 5);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#795548';
+        ctx.fillRect(-28, -2, 34, 4);
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.strokeStyle = '#b7950b';
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.arc(6, 0, 4.5, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(11, 0, 3, 5.5, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.moveTo(34, 0);
+        ctx.lineTo(14, -16);
+        ctx.lineTo(18, -6);
+        ctx.lineTo(12, -4);
+        ctx.lineTo(12, 4);
+        ctx.lineTo(18, 6);
+        ctx.lineTo(14, 16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#f39c12';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(30, 0); ctx.lineTo(16, -12); ctx.lineTo(19, -5);
+        ctx.moveTo(30, 0); ctx.lineTo(16, 12); ctx.lineTo(19, 5);
+        ctx.stroke();
+
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.arc(17, 0, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(17, -2.5); ctx.lineTo(22, 0); ctx.lineTo(17, 2.5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+        const dist = Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y);
+        if (dist < proj.target.radius + 8) {
+          if (proj.owner && proj.owner.timeStopTimer > 0) {
+            proj.target.deferredDamage += proj.damage;
+            addFloatingText(proj.target.x, proj.target.y - 15, `30`, '#a55eea');
+          } else {
+            applyDamage(proj.target, proj.damage);
+            addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
+          }
+          triggerShake(10);
+          projectiles.splice(i, 1);
+          continue;
+        }
+      }
+      else if (proj.isDagger) {
         ctx.save();
         ctx.translate(proj.x, proj.y);
         ctx.rotate(Math.atan2(proj.vy, proj.vx));
@@ -1056,7 +1162,7 @@ function loop(now) {
         ctx.restore();
       }
 
-      if (!proj.isDagger && Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y) < proj.target.radius + 6) {
+      if (!proj.isDagger && !proj.isStandArrow && Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y) < proj.target.radius + 6) {
         applyDamage(proj.target, proj.damage);
         addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
         triggerShake(5);
@@ -1080,10 +1186,24 @@ function loop(now) {
       ft.alpha -= 0.03;
       if (ft.alpha <= 0) floatingTexts.splice(i, 1);
     }
+
+    // 하드웨어 가속 기반 시간 정지 반전 (렉 차단)
+    const isTimeStopped = (p1.timeStopTimer > 0 || p2.timeStopTimer > 0);
+    if (isTimeStopped) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'difference';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+      ctx.restore();
+    }
   }
 
   ctx.restore();
 }
+
+// 클릭 시 브라우저 오디오 접근 해제 이벤트 등록
+window.addEventListener('click', unlockAudioContext, { once: true });
+window.addEventListener('touchstart', unlockAudioContext, { once: true });
 
 document.querySelectorAll('button').forEach(btn => {
   btn.addEventListener('click', () => {

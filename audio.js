@@ -52,6 +52,11 @@ export const parkAimPool = new SoundPool('sounds/park_aim.mp3', 3);    // 박지
 export const poopThrowPool = new SoundPool('sounds/poop_throw.mp3', 3); // 김티비 똥 던질때
 export const hitPool = new SoundPool('sounds/hit.mp3', 5);             // 전체 공 피해 피격음
 
+// 쿠죠 박타로 신규 사운드 풀 (경로 통일)
+export const kujoPunchPool = new SoundPool('sounds/kujo_punch.mp3', 6);
+export const timeStopChargePool = new SoundPool('sounds/timestop_charge.mp3', 2);
+export const arrowThrowPool = new SoundPool('sounds/arrow_throw.mp3', 2);
+
 let lastBounceTime = 0;
 export function playBounceSfx() {
   const now = Date.now();
@@ -63,3 +68,8 @@ export function playBounceSfx() {
 
 export function playBGM() { if (bgm.paused) bgm.play().catch(() => {}); }
 export function stopBGM() { bgm.pause(); bgm.currentTime = 0; }
+
+// 기존 main.js와의 호환을 위한 더미 함수 추가 (오류 방지)
+export function unlockAudioContext() {
+  playBGM();
+}
