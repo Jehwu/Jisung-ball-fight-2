@@ -282,15 +282,15 @@ body {
 .badge.sys  { background: #0984e3; color: #ffffff; }
 .badge.adj  { background: #fdcb6e; color: #000000; }
 
-.char-select-section { width: 100%; margin-bottom: 12px; }
+.char-select-section { width: 100%; margin-bottom: 8px; }
 .section-label { font-size: 10px; font-weight: 900; margin-bottom: 4px; }
 .p1-color { color: #ff3344; }
 .p2-color { color: #00e676; }
 
 .char-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
   width: 100%;
 }
 
@@ -301,14 +301,22 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 5px 0;
+  padding: 6px 2px;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .char-card:hover { transform: translateY(-2px); }
-.char-card .char-emoji { font-size: 14px; margin-bottom: 1px; }
-.char-card .char-name { font-size: 7px; font-weight: 800; color: var(--text-sub); letter-spacing: -0.5px; }
+.char-card .char-emoji { font-size: 15px; margin-bottom: 2px; }
+.char-card .char-name {
+  font-size: 7.5px;
+  font-weight: 800;
+  color: var(--text-sub);
+  letter-spacing: -0.5px;
+  text-align: center;
+  line-height: 1.1;
+  word-break: keep-all;
+}
 
 #p1-char-grid .char-card.selected { border: 2px solid #ff3344; background: rgba(255, 51, 68, 0.15); }
 #p1-char-grid .char-card.selected .char-name { color: #ff3344; }

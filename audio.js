@@ -41,21 +41,37 @@ export const geonwooWavePool = new SoundPool('sounds/geonwoo_wave.mp3', 3);
 export const geonwooSmokePool = new SoundPool('sounds/geonwoo_smoke.mp3', 3);
 
 // 흉악범 전용 사운드 풀
-export const criminalDaggerPool = new SoundPool('sounds/criminal_dagger.mp3', 3); // 단검 던지기
-export const criminalParryPool = new SoundPool('sounds/criminal_parry.mp3', 3);   // 반격 순간이동
-export const criminalBombPool = new SoundPool('sounds/criminal_bomb.mp3', 3);     // 허수아비 폭탄 폭발
+export const criminalDaggerPool = new SoundPool('sounds/criminal_dagger.mp3', 3); 
+export const criminalParryPool = new SoundPool('sounds/criminal_parry.mp3', 3);   
+export const criminalBombPool = new SoundPool('sounds/criminal_bomb.mp3', 3);     
 
 // 대거 추가된 사운드 풀
-export const kimThrowPool = new SoundPool('sounds/kim_throw.mp3', 3);  // 김민채 기본스킬 투사체
-export const gongUltPool = new SoundPool('sounds/gong_ult.mp3', 2);    // 공병은 궁 발동시
-export const parkAimPool = new SoundPool('sounds/park_aim.mp3', 3);    // 박지성 기본스킬 조준
-export const poopThrowPool = new SoundPool('sounds/poop_throw.mp3', 3); // 김티비 똥 던질때
-export const hitPool = new SoundPool('sounds/hit.mp3', 5);             // 전체 공 피해 피격음
+export const kimThrowPool = new SoundPool('sounds/kim_throw.mp3', 3);  
+export const gongUltPool = new SoundPool('sounds/gong_ult.mp3', 2);    
+export const parkAimPool = new SoundPool('sounds/park_aim.mp3', 3);    
+export const poopThrowPool = new SoundPool('sounds/poop_throw.mp3', 3); 
+export const hitPool = new SoundPool('sounds/hit.mp3', 5);             
 
-// 쿠죠 박타로 신규 사운드 풀 (경로 통일)
+// 쿠죠 박타로 신규 사운드 풀
 export const kujoPunchPool = new SoundPool('sounds/kujo_punch.mp3', 6);
 export const timeStopChargePool = new SoundPool('sounds/timestop_charge.mp3', 2);
 export const arrowThrowPool = new SoundPool('sounds/arrow_throw.mp3', 2);
+
+// 🎲 도박꾼 공병은 전용 사운드 풀
+export const diceRollPool = new SoundPool('sounds/dice_roll.mp3', 3);          
+export const diceSelfHarmPool = new SoundPool('sounds/dice_self_harm.mp3', 3); 
+export const diceAttackPool = new SoundPool('sounds/dice_attack.mp3', 3);     
+export const diceSwordPool = new SoundPool('sounds/dice_sword.mp3', 3);       
+export const rouletteSpinPool = new SoundPool('sounds/roulette_spin.mp3', 3); 
+export const rouletteFailPool = new SoundPool('sounds/roulette_fail.mp3', 3); 
+export const rouletteWinPool = new SoundPool('sounds/roulette_win.mp3', 3);   
+export const rouletteWinAttackPool = new SoundPool('sounds/roulette_win_attack.mp3', 3); 
+
+// 🌋 김민채(각성) 전용 신규 사운드 풀
+export const kimSlamPool = new SoundPool('sounds/kim_slam.mp3', 3);     // 기본 공격 땅 찍을 때 사운드
+export const kimRollPool = new SoundPool('sounds/kim_roll.mp3', 3);     // 볼링공 구를 때 사운드
+export const kimStrikePool = new SoundPool('sounds/kim_strike.mp3', 3); // 볼링공 충돌 사운드
+export const magmaBurnPool = new SoundPool('sounds/magma_burn.mp3', 3); // 마그마 피격 지속 사운드
 
 let lastBounceTime = 0;
 export function playBounceSfx() {
@@ -69,7 +85,6 @@ export function playBounceSfx() {
 export function playBGM() { if (bgm.paused) bgm.play().catch(() => {}); }
 export function stopBGM() { bgm.pause(); bgm.currentTime = 0; }
 
-// 기존 main.js와의 호환을 위한 더미 함수 추가 (오류 방지)
 export function unlockAudioContext() {
   playBGM();
 }

@@ -4,7 +4,8 @@ import { Ball } from './ball.js';
 import { 
   bgm, clickPool, sofaDropPool, parkShootPool, poopTrapPool, poopEatPool, 
   gaeunCutPool, playBounceSfx, playBGM, stopBGM,
-  criminalParryPool, criminalBombPool, hitPool, unlockAudioContext
+  criminalParryPool, criminalBombPool, hitPool, unlockAudioContext,
+  rouletteFailPool, rouletteWinPool, rouletteWinAttackPool
 } from './audio.js';
 import { distToSegment, drawHexagonFrame } from './effects.js';
 
@@ -66,10 +67,15 @@ function triggerDeathExplosion(ball) {
   }
 }
 
-function applyDamage(target, amount) {
-  if (gameState !== 'PLAYING') return;
+function applyDamage(target, amount, customText = null, textColor = '#ff2d2d') {
+  if (gameState !== 'PLAYING') return 0;
 
-  if (target.counterStanceTimer > 0 && amount > 0) {
+  let actualDamage = amount;
+  if (target.isMegaBowling && actualDamage > 0) {
+    actualDamage = Math.floor(actualDamage * 0.5);
+  }
+
+  if (target.counterStanceTimer > 0 && actualDamage > 0) {
     criminalParryPool.play();
     target.counterStanceTimer = 0;
     const enemy = (target === p1) ? p2 : p1;
@@ -95,20 +101,28 @@ function applyDamage(target, amount) {
       life: 120,
       maxLife: 120
     });
-    return;
+    return 0;
   }
 
-  if (amount > 0) {
+  if (actualDamage > 0) {
     hitPool.play();
   }
 
-  target.hp = Math.max(0, target.hp - amount);
+  target.hp = Math.max(0, target.hp - actualDamage);
   updateHUD();
+
+  if (customText) {
+    addFloatingText(target.x, target.y - 18, customText, textColor);
+  } else if (actualDamage > 0) {
+    addFloatingText(target.x, target.y - 18, `-${actualDamage}`, textColor);
+  }
 
   if (target.hp <= 0) {
     triggerDeathExplosion(target);
     endGame();
   }
+
+  return actualDamage;
 }
 
 function addFloatingText(x, y, text, color = '#ff3344') {
@@ -211,6 +225,15 @@ function startBattle() {
   startCountdown();
 }
 
+// 📌 1. 수정: 오버레이 텍스트가 표시되도록 active 클래스 추가 처리
+function showOverlay(msg) { 
+  overlayMsg.innerText = msg; 
+  overlayMsg.classList.add('active'); 
+}
+function hideOverlay() { 
+  overlayMsg.classList.remove('active'); 
+}
+
 function startCountdown() {
   gameState = 'COUNTDOWN';
   countdownStartTime = Date.now();
@@ -244,9 +267,6 @@ function endGame() {
   showOverlay(`👑 ${winner.data.name} 승리!`);
   setTimeout(() => showScreen('screen-char'), 2500);
 }
-
-function showOverlay(msg) { overlayMsg.innerText = msg; overlayMsg.classList.add('active'); }
-function hideOverlay() { overlayMsg.classList.remove('active'); }
 
 function loop(now) {
   animFrameId = requestAnimationFrame(loop);
@@ -306,7 +326,6 @@ function loop(now) {
         if (Math.hypot(enemy.x - poop.x, enemy.y - poop.y) < enemy.radius + 8) {
           poopTrapPool.play();
           applyDamage(enemy, poop.damage);
-          addFloatingText(enemy.x, enemy.y - 15, `-${poop.damage}`, '#ff3344');
           triggerShake(12);
 
           skillEffects.push({ type: 'MUSHROOM_CLOUD', x: poop.x, y: poop.y, life: 30, maxLife: 30 });
@@ -352,7 +371,428 @@ function loop(now) {
         ctx.fillStyle = ef.color;
         ctx.fill();
         ef.life -= 1;
-      } 
+      }
+      // 📌 2. 신규 이펙트: 캐릭터 불타는 피격 화염 입자
+      else if (ef.type === 'FIRE_PARTICLE') {
+        ef.x += ef.vx;
+        ef.y += ef.vy;
+        ef.radius = Math.max(0, ef.radius - 0.15);
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
+        ctx.fillStyle = ef.color;
+        ctx.shadowColor = ef.color;
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'MAGMA_PATCH') {
+        const p = ef.life / ef.maxLife;
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        const auraGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 25);
+        auraGrad.addColorStop(0, `rgba(255, 60, 0, ${0.45 * p})`);
+        auraGrad.addColorStop(0.6, `rgba(232, 65, 24, ${0.2 * p})`);
+        auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 25, 0, Math.PI * 2);
+        ctx.fillStyle = auraGrad;
+        ctx.fill();
+
+        if (ef.points && ef.points.length > 0) {
+          ctx.beginPath();
+          ctx.moveTo(ef.points[0].x, ef.points[0].y);
+          for (let k = 1; k < ef.points.length; k++) {
+            ctx.lineTo(ef.points[k].x, ef.points[k].y);
+          }
+          ctx.closePath();
+
+          const magmaGrad = ctx.createRadialGradient(0, 0, 1, 0, 0, 18);
+          magmaGrad.addColorStop(0, `rgba(255, 242, 0, ${0.95 * p})`);
+          magmaGrad.addColorStop(0.35, `rgba(255, 120, 0, ${0.9 * p})`);
+          magmaGrad.addColorStop(0.7, `rgba(214, 48, 49, ${0.85 * p})`);
+          magmaGrad.addColorStop(1, `rgba(130, 15, 15, ${0.4 * p})`);
+
+          ctx.fillStyle = magmaGrad;
+          ctx.fill();
+
+          ctx.fillStyle = `rgba(30, 30, 35, ${0.8 * p})`;
+          for (let b = 0; b < 3; b++) {
+            const bx = Math.sin(b * 2.3 + ef.x) * 5;
+            const by = Math.cos(b * 1.9 + ef.y) * 5;
+            ctx.beginPath();
+            ctx.arc(bx, by, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.restore();
+
+        if (gameState === 'PLAYING') {
+          [p1, p2].forEach(enemy => {
+            if (enemy !== ef.owner && enemy.hp > 0) {
+              const dist = Math.hypot(enemy.x - ef.x, enemy.y - ef.y);
+              if (dist <= ef.radius + enemy.radius) {
+                if (!enemy.hasTakenMagmaDamage) {
+                  enemy.hasTakenMagmaDamage = true;
+                  enemy.magmaBurnTimer = 180;
+                  enemy.magmaBurnTickTimer = 0;
+                  // 선명하게 눈에 띄는 텍스트 및 효과 적용
+                  addFloatingText(enemy.x, enemy.y - 24, '🔥 마그마 화상!', '#ff3000');
+                  triggerShake(8);
+                }
+              }
+            }
+          });
+        }
+
+        ef.life -= 1;
+      }
+      else if (ef.type === 'EARTHQUAKE_SLAM_IMPACT') {
+        const progress = 1 - ef.life / ef.maxLife;
+        const currentR = ef.radius + (ef.maxRadius - ef.radius) * Math.pow(progress, 0.6);
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, currentR, 0, Math.PI * 2);
+        ctx.strokeStyle = '#d63031';
+        ctx.lineWidth = 7 * (1 - progress);
+        ctx.shadowColor = '#e84118';
+        ctx.shadowBlur = 20;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, currentR * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, currentR * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(232, 65, 24, ${0.5 * (1 - progress)})`;
+        ctx.fill();
+
+        for (let k = 0; k < 8; k++) {
+          const crackAngle = (Math.PI / 4) * k + (k % 2 === 0 ? 0.1 : -0.1);
+          const crackLen = currentR * (0.8 + Math.sin(k) * 0.2);
+
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(crackAngle) * (crackLen * 0.5), Math.sin(crackAngle) * (crackLen * 0.5));
+          ctx.lineTo(Math.cos(crackAngle + 0.15) * crackLen, Math.sin(crackAngle + 0.15) * crackLen);
+          ctx.strokeStyle = '#ff7675';
+          ctx.lineWidth = 3.5 * (1 - progress);
+          ctx.stroke();
+        }
+
+        for (let r = 0; r < 8; r++) {
+          const rockAngle = (Math.PI / 4) * r + progress * 0.8;
+          const rockDist = currentR * 0.75;
+          ctx.fillStyle = '#2d3436';
+          ctx.strokeStyle = '#e84118';
+          ctx.lineWidth = 1;
+
+          ctx.beginPath();
+          ctx.arc(Math.cos(rockAngle) * rockDist, Math.sin(rockAngle) * rockDist, 4.5 * (1 - progress), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'BOWLING_STRIKE_POP') {
+        const progress = 1 - ef.life / ef.maxLife;
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, progress * 75, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ff2d2d';
+        ctx.lineWidth = 6 * (1 - progress);
+        ctx.stroke();
+
+        const pinCount = 6;
+        for (let p = 0; p < pinCount; p++) {
+          const pinAngle = (Math.PI * 2 / pinCount) * p + progress * 2.5;
+          const pinDist = progress * 55;
+          const px = Math.cos(pinAngle) * pinDist;
+          const py = Math.sin(pinAngle) * pinDist;
+
+          ctx.font = 'bold 16px "NeoDunggeunmo", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🎳', px, py);
+        }
+
+        ctx.restore();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'DICE_ROULETTE_SPIN') {
+        const p = 1 - ef.life / ef.maxLife;
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        const boxSize = 38;
+        const isRevealed = p >= 0.88;
+        const displayNum = isRevealed ? ef.targetNum : (Math.floor(Math.random() * 6) + 1);
+
+        ctx.shadowColor = isRevealed ? '#f1c40f' : '#00cec9';
+        ctx.shadowBlur = isRevealed ? 35 : 15;
+
+        ctx.save();
+        ctx.rotate(p * Math.PI * 8);
+        ctx.strokeStyle = isRevealed ? '#ffffff' : '#00cec9';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(-boxSize / 2 - 4, -boxSize / 2 - 4, boxSize + 8, boxSize + 8);
+        ctx.restore();
+
+        ctx.fillStyle = '#0f111a';
+        ctx.strokeStyle = isRevealed ? '#f1c40f' : '#3d3d3d';
+        ctx.lineWidth = 3;
+        ctx.fillRect(-boxSize / 2, -boxSize / 2, boxSize, boxSize);
+        ctx.strokeRect(-boxSize / 2, -boxSize / 2, boxSize, boxSize);
+
+        ctx.fillStyle = isRevealed ? '#f1c40f' : '#ffffff';
+        ctx.font = 'bold 22px "NeoDunggeunmo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(displayNum, 0, 2);
+
+        ctx.restore();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'SLOT_MACHINE_ANIM') {
+        const p = 1 - ef.life / ef.maxLife;
+
+        ctx.save();
+        ctx.translate(ef.x, ef.y);
+
+        const w = 96;
+        const h = 38;
+
+        const slot1 = p > 0.25 ? (ef.isWin ? '7' : '❌') : Math.floor(Math.random() * 9);
+        const slot2 = p > 0.55 ? (ef.isWin ? '7' : '7') : Math.floor(Math.random() * 9);
+        const slot3 = p > 0.88 ? (ef.isWin ? '7' : '❌') : Math.floor(Math.random() * 9);
+
+        const isFullyLocked = p >= 0.88;
+        const borderColor = isFullyLocked ? (ef.isWin ? '#f1c40f' : '#ff3344') : '#00cec9';
+
+        ctx.shadowColor = borderColor;
+        ctx.shadowBlur = isFullyLocked ? (ef.isWin ? 40 : 15) : 12;
+
+        ctx.fillStyle = '#0f111a';
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 3.5;
+
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.strokeRect(-w / 2, -h / 2, w, h);
+
+        ctx.fillStyle = isFullyLocked ? (ef.isWin ? '#f1c40f' : '#ff4757') : '#ffffff';
+        ctx.font = 'bold 17px "NeoDunggeunmo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`[ ${slot1} | ${slot2} | ${slot3} ]`, 0, 2);
+
+        ctx.restore();
+
+        if (p >= 0.88 && !ef.triggered) {
+          ef.triggered = true;
+
+          if (ef.isWin) {
+            rouletteWinPool.play();
+            rouletteWinAttackPool.play();
+
+            applyDamage(ef.target, 77);
+            triggerShake(35);
+
+            const angle = Math.atan2(ef.target.y - ef.owner.y, ef.target.x - ef.owner.x);
+            ef.target.vx = Math.cos(angle) * 18.0;
+            ef.target.vy = Math.sin(angle) * 18.0;
+
+            skillEffects.push({
+              type: 'JACKPOT_ULT_STRIKE',
+              targetX: ef.target.x,
+              targetY: ef.target.y,
+              life: 55,
+              maxLife: 55
+            });
+          } else {
+            rouletteFailPool.play();
+            triggerShake(8);
+          }
+        }
+
+        ef.life -= 1;
+      }
+      else if (ef.type === 'LIGHT_SWORD_DROP') {
+        const p = 1 - ef.life / ef.maxLife;
+        ef.currentY = -120 + (ef.targetY + 120) * Math.pow(p, 2.2);
+
+        ctx.save();
+        ctx.translate(ef.targetX, ef.targetY);
+
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 24 * (0.3 + p * 0.7), 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(p * Math.PI * 2);
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(ef.targetX, ef.currentY);
+
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 20;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(0, 32);
+        ctx.lineTo(7, -18);
+        ctx.lineTo(0, -28);
+        ctx.lineTo(-7, -18);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 28); ctx.lineTo(0, -22);
+        ctx.stroke();
+
+        ctx.fillStyle = '#d35400';
+        ctx.fillRect(-15, -20, 30, 5);
+        ctx.fillStyle = '#00cec9';
+        ctx.beginPath();
+        ctx.arc(0, -17.5, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(-3, -34, 6, 14);
+
+        ctx.restore();
+
+        if (p >= 0.92 && !ef.triggered) {
+          ef.triggered = true;
+          applyDamage(ef.target, ef.damage);
+          ef.target.stunTimer = 60;
+          triggerShake(24);
+
+          ef.target.vx = Math.cos(ef.angle) * 12.0;
+          ef.target.vy = Math.sin(ef.angle) * 12.0;
+
+          for (let k = 0; k < 16; k++) {
+            const rayAngle = (Math.PI * 2 / 16) * k;
+            const spd = Math.random() * 5 + 3;
+            skillEffects.push({
+              type: 'DEATH_POP',
+              x: ef.targetX,
+              y: ef.targetY,
+              vx: Math.cos(rayAngle) * spd,
+              vy: Math.sin(rayAngle) * spd,
+              radius: Math.random() * 4 + 2,
+              color: k % 2 === 0 ? '#f1c40f' : '#ffffff',
+              life: 20,
+              maxLife: 20
+            });
+          }
+        }
+
+        ef.life -= 1;
+      }
+      else if (ef.type === 'JACKPOT_ULT_STRIKE') {
+        const p = 1 - ef.life / ef.maxLife;
+
+        ctx.save();
+        ctx.translate(ef.targetX, ef.targetY);
+
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 45;
+        ctx.fillStyle = `rgba(241, 196, 15, ${1 - p * 0.8})`;
+        ctx.fillRect(-30, -ARENA_SIZE, 60, ARENA_SIZE * 2);
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${1 - p})`;
+        ctx.fillRect(-12, -ARENA_SIZE, 24, ARENA_SIZE * 2);
+
+        ctx.save();
+        ctx.rotate(p * Math.PI * 4);
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 48 * (1 + p * 0.5), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        for (let wave = 1; wave <= 3; wave++) {
+          ctx.strokeStyle = wave % 2 === 0 ? '#ffffff' : '#f1c40f';
+          ctx.lineWidth = (6 - wave) * (1 - p);
+          ctx.beginPath();
+          ctx.arc(0, 0, p * 90 * (wave * 0.4), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        const items = ['🪙', '💎', '✨', '👑', '🎰'];
+        for (let c = 0; c < 12; c++) {
+          const cAngle = (Math.PI * 2 / 12) * c + p * 8;
+          const cDist = p * 85;
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(items[c % items.length], Math.cos(cAngle) * cDist, Math.sin(cAngle) * cDist);
+        }
+
+        ctx.restore();
+        ef.life -= 1;
+      }
+      else if (ef.type === 'DICE_IMPACT') {
+        const p = 1 - ef.life / ef.maxLife;
+        const radius = (15 + ef.diceNum * 6) * p;
+
+        ctx.save();
+        ctx.shadowColor = ef.color;
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = ef.color;
+        ctx.globalAlpha = 1 - p;
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.arc(ef.x, ef.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const count = ef.diceNum * 3;
+        for (let k = 0; k < count; k++) {
+          const angle = (Math.PI * 2 / count) * k + p * 2;
+          const px = ef.x + Math.cos(angle) * radius;
+          const py = ef.y + Math.sin(angle) * radius;
+          ctx.fillStyle = ef.color;
+          ctx.beginPath();
+          ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+        ef.life -= 1;
+      }
       else if (ef.type === 'TIME_STOP_WAVE') {
         const progress = 1 - ef.life / ef.maxLife;
         const currentR = ef.radius + (ef.maxRadius - ef.radius) * Math.pow(progress, 0.7);
@@ -492,7 +932,6 @@ function loop(now) {
           const enemy = ef.target;
           if (Math.hypot(enemy.x - ef.x, enemy.y - ef.y) <= ef.radius + enemy.radius) {
             applyDamage(enemy, ef.damage);
-            addFloatingText(enemy.x, enemy.y - 18, `-${ef.damage}`, '#ff3344');
           }
         }
       }
@@ -637,10 +1076,9 @@ function loop(now) {
           if (dist <= currentR + ef.target.radius) {
             ef.hit = true;
             applyDamage(ef.target, ef.damage);
-            addFloatingText(ef.target.x, ef.target.y - 18, `-${ef.damage}`, '#ff3344');
             triggerShake(14);
 
-            const kbAngle = Math.atan2(ef.target.y - ef.y, ef.target.x - ef.x);
+            const kbAngle = Math.atan2(ef.target.y - ef.x, ef.target.x - ef.x);
             ef.target.vx = Math.cos(kbAngle) * 9.5;
             ef.target.vy = Math.sin(kbAngle) * 9.5;
           }
@@ -725,7 +1163,6 @@ function loop(now) {
               ef.tickTimer = 0;
               const tickDmg = Math.floor((ef.damage || 40) / 8);
               applyDamage(targetEnemy, tickDmg);
-              addFloatingText(targetEnemy.x + (Math.random() - 0.5) * 10, targetEnemy.y - 15, `-${tickDmg}`, '#ff3344');
               triggerShake(3);
             }
           }
@@ -753,7 +1190,6 @@ function loop(now) {
             ef.triggered = true;
             gaeunCutPool.play();
             applyDamage(ef.target, ef.damage);
-            addFloatingText(ef.target.x, ef.target.y - 18, `-${ef.damage}`, '#ff3344');
             triggerShake(18);
 
             const tempVx = ef.target.vx;
@@ -881,7 +1317,6 @@ function loop(now) {
             if (p !== ef.owner && Math.hypot(p.x - ef.x, p.y - ef.y) <= ef.radius + p.radius) {
               applyDamage(p, ef.damage);
               p.stunTimer = 60;
-              addFloatingText(p.x, p.y - 15, `-40`, '#ff3344');
             }
           });
         }
@@ -911,7 +1346,30 @@ function loop(now) {
 
       proj.x += proj.vx; proj.y += proj.vy; proj.life -= 1;
 
-      if (proj.isStandArrow) {
+      if (proj.isDice) {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        ctx.rotate((Date.now() / 80) % (Math.PI * 2));
+
+        const size = 16 + proj.diceNum * 2;
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 12;
+
+        ctx.fillStyle = '#1e272e';
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 2;
+        ctx.fillRect(-size / 2, -size / 2, size, size);
+        ctx.strokeRect(-size / 2, -size / 2, size, size);
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = `bold ${10 + proj.diceNum}px "NeoDunggeunmo", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(proj.diceNum, 0, 0);
+
+        ctx.restore();
+      }
+      else if (proj.isStandArrow) {
         ctx.save();
         ctx.translate(proj.x, proj.y);
         const arrowAngle = Math.atan2(proj.vy, proj.vx);
@@ -988,7 +1446,6 @@ function loop(now) {
             addFloatingText(proj.target.x, proj.target.y - 15, `30`, '#a55eea');
           } else {
             applyDamage(proj.target, proj.damage);
-            addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
           }
           triggerShake(10);
           projectiles.splice(i, 1);
@@ -1046,7 +1503,6 @@ function loop(now) {
         const dist = Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y);
         if (dist < proj.target.radius + 6) {
           applyDamage(proj.target, proj.damage);
-          addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
 
           proj.target.skillCool = Math.max(0, proj.target.skillCool - (0.65 * 60 * proj.target.data.coolSpeed));
 
@@ -1164,7 +1620,6 @@ function loop(now) {
 
       if (!proj.isDagger && !proj.isStandArrow && Math.hypot(proj.target.x - proj.x, proj.target.y - proj.y) < proj.target.radius + 6) {
         applyDamage(proj.target, proj.damage);
-        addFloatingText(proj.target.x, proj.target.y - 15, `-${proj.damage}`, '#ff3344');
         triggerShake(5);
         projectiles.splice(i, 1);
         continue;
@@ -1187,7 +1642,6 @@ function loop(now) {
       if (ft.alpha <= 0) floatingTexts.splice(i, 1);
     }
 
-    // 하드웨어 가속 기반 시간 정지 반전 (렉 차단)
     const isTimeStopped = (p1.timeStopTimer > 0 || p2.timeStopTimer > 0);
     if (isTimeStopped) {
       ctx.save();
@@ -1201,7 +1655,6 @@ function loop(now) {
   ctx.restore();
 }
 
-// 클릭 시 브라우저 오디오 접근 해제 이벤트 등록
 window.addEventListener('click', unlockAudioContext, { once: true });
 window.addEventListener('touchstart', unlockAudioContext, { once: true });
 

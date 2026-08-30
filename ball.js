@@ -5,7 +5,9 @@ import {
   geonwooWavePool, geonwooSmokePool,
   criminalDaggerPool,
   kimThrowPool, gongUltPool, parkAimPool, poopThrowPool,
-  kujoPunchPool, timeStopChargePool, arrowThrowPool
+  kujoPunchPool, timeStopChargePool, arrowThrowPool,
+  diceRollPool, diceSelfHarmPool, diceAttackPool, diceSwordPool, rouletteSpinPool,
+  kimSlamPool, kimRollPool, kimStrikePool, magmaBurnPool
 } from './audio.js';
 
 function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, fillColor, strokeColor) {
@@ -128,6 +130,27 @@ export class Ball {
     this.timeStopTimer = 0;
     this.deferredDamage = 0;
     this.spearThrown = false;
+
+    this.currentDiceNum = null;
+    this.diceAuraTimer = 0;
+    this.diceAuraLevel = 0;
+
+    this.isMegaBowling = false;
+    this.megaBowlingTimer = 0;
+    this.megaBowlingHits = 0;
+    this.megaBowlingHitCooldown = 0;
+    this.megaBowlingRollAngle = 0;
+
+    this.isSlamming = false;
+    this.slamProgress = 0;
+    this.slamStartX = 0;
+    this.slamStartY = 0;
+    this.slamTargetX = 0;
+    this.slamTargetY = 0;
+
+    this.hasTakenMagmaDamage = false;
+    this.magmaBurnTimer = 0;
+    this.magmaBurnTickTimer = 0;
   }
 
   init(charData, isP2 = false, isMirror = false) {
@@ -182,6 +205,23 @@ export class Ball {
     this.deferredDamage = 0;
     this.spearThrown = false;
 
+    this.currentDiceNum = null;
+    this.diceAuraTimer = 0;
+    this.diceAuraLevel = 0;
+
+    this.isMegaBowling = false;
+    this.megaBowlingTimer = 0;
+    this.megaBowlingHits = 0;
+    this.megaBowlingHitCooldown = 0;
+    this.megaBowlingRollAngle = 0;
+
+    this.isSlamming = false;
+    this.slamProgress = 0;
+
+    this.hasTakenMagmaDamage = false;
+    this.magmaBurnTimer = 0;
+    this.magmaBurnTickTimer = 0;
+
     const charSpeed = this.data ? (this.data.speed || 1.5) : 1.5;
     const randomAngle = Math.random() * Math.PI * 2;
     const baseSpeed = 0.9 * charSpeed;
@@ -193,11 +233,163 @@ export class Ball {
   update(target, gameState, applyDamage, addFloatingText, skillEffects, projectiles, ARENA_SIZE, triggerShake) {
     if (gameState !== 'PLAYING') return;
 
-    // 먹힌 상태일 때는 오라/쿨타임/궁극기 차징/움직임 포함 모든 동작 완전 정지
     if (this.isEaten) return;
 
     if (target.timeStopTimer > 0) {
       return;
+    }
+
+    // 📌 3. 마그마 화염 지속 피해 연출 (선명한 화염 입자 생성)
+    if (this.magmaBurnTimer > 0) {
+      this.magmaBurnTimer -= 1;
+      this.magmaBurnTickTimer += 1;
+
+      // 몸 전체에서 타오르는 화염 입자 고빈도 스폰
+      for (let k = 0; k < 2; k++) {
+        skillEffects.push({
+          type: 'FIRE_PARTICLE',
+          x: this.x + (Math.random() - 0.5) * (this.radius * 1.8),
+          y: this.y + (Math.random() - 0.2) * (this.radius * 1.2),
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: -Math.random() * 2.5 - 1.0, // 위로 피어오르는 불꽃
+          radius: Math.random() * 4 + 3,
+          color: Math.random() < 0.6 ? '#ff3a00' : '#ffc107',
+          life: 18,
+          maxLife: 18
+        });
+      }
+
+      if (this.magmaBurnTickTimer >= 60) {
+        this.magmaBurnTickTimer = 0;
+        magmaBurnPool.play();
+        applyDamage(this, 6);
+      }
+    }
+
+    if (this.isSlamming) {
+      this.slamProgress += 0.035;
+
+      const p = Math.min(1, this.slamProgress);
+      this.x = this.slamStartX + (this.slamTargetX - this.slamStartX) * p;
+      this.y = this.slamStartY + (this.slamTargetY - this.slamStartY) * p;
+
+      if (Math.random() < 0.8) {
+        skillEffects.push({
+          type: 'DUST',
+          x: this.x + (Math.random() - 0.5) * 16,
+          y: this.y + (Math.random() - 0.5) * 16,
+          radius: Math.random() * 5 + 3,
+          color: Math.random() < 0.5 ? '#d63031' : '#e84118',
+          life: 16
+        });
+      }
+
+      if (p >= 1.0) {
+        this.isSlamming = false;
+        triggerShake(22);
+        kimSlamPool.play();
+
+        skillEffects.push({
+          type: 'EARTHQUAKE_SLAM_IMPACT',
+          x: this.x,
+          y: this.y,
+          radius: 12,
+          maxRadius: 105,
+          color: this.color,
+          life: 30,
+          maxLife: 30
+        });
+
+        const dist = Math.hypot(target.x - this.x, target.y - this.y);
+        if (dist <= 85 + target.radius) {
+          applyDamage(target, 18);
+          
+          const kbAngle = Math.atan2(target.y - this.y, target.x - this.x);
+          target.vx = Math.cos(kbAngle) * 9.5;
+          target.vy = Math.sin(kbAngle) * 9.5;
+        }
+
+        const charSpeed = this.data ? (this.data.speed || 1.5) : 1.5;
+        const randAngle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(randAngle) * 0.9 * charSpeed;
+        this.vy = Math.sin(randAngle) * 0.9 * charSpeed;
+      }
+      return;
+    }
+
+    if (this.isMegaBowling) {
+      this.megaBowlingTimer -= 1;
+      if (this.megaBowlingHitCooldown > 0) this.megaBowlingHitCooldown -= 1;
+
+      this.megaBowlingRollAngle += 0.45;
+      triggerShake(2);
+
+      if (this.megaBowlingTimer % 20 === 0) {
+        kimRollPool.play(0.35);
+      }
+
+      this.x += this.vx;
+      this.y += this.vy;
+      handleWallBounce(this, ARENA_SIZE);
+
+      if (this.megaBowlingTimer % 10 === 0) {
+        const points = [];
+        const numPoints = 7 + Math.floor(Math.random() * 4);
+        for (let pt = 0; pt < numPoints; pt++) {
+          const ptAngle = (Math.PI * 2 / numPoints) * pt;
+          const ptDist = 12 + Math.random() * 8;
+          points.push({ x: Math.cos(ptAngle) * ptDist, y: Math.sin(ptAngle) * ptDist });
+        }
+
+        skillEffects.push({
+          type: 'MAGMA_PATCH',
+          x: this.x,
+          y: this.y,
+          radius: 18,
+          points: points,
+          life: 300,
+          maxLife: 300,
+          owner: this
+        });
+      }
+
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+      if (dist < this.radius + target.radius + 4 && this.megaBowlingHits < 3 && this.megaBowlingHitCooldown <= 0) {
+        this.megaBowlingHits += 1;
+        this.megaBowlingHitCooldown = 25;
+
+        kimStrikePool.play();
+        applyDamage(target, 16);
+        triggerShake(22);
+
+        skillEffects.push({
+          type: 'BOWLING_STRIKE_POP',
+          x: target.x,
+          y: target.y,
+          life: 30,
+          maxLife: 30
+        });
+
+        const hitAngle = Math.atan2(target.y - this.y, target.x - this.x);
+        target.vx = Math.cos(hitAngle) * 9.5;
+        target.vy = Math.sin(hitAngle) * 9.5;
+
+        this.vx = -Math.cos(hitAngle) * 7.5;
+        this.vy = -Math.sin(hitAngle) * 7.5;
+      }
+
+      if (this.megaBowlingTimer <= 0) {
+        this.isMegaBowling = false;
+        const charSpeed = this.data ? (this.data.speed || 1.5) : 1.5;
+        const randAngle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(randAngle) * 0.9 * charSpeed;
+        this.vy = Math.sin(randAngle) * 0.9 * charSpeed;
+      }
+      return;
+    }
+
+    if (this.diceAuraTimer > 0) {
+      this.diceAuraTimer--;
     }
 
     if (this.data && this.data.basic.type === 'ORA_AURA') {
@@ -205,7 +397,7 @@ export class Ball {
       const dist = Math.hypot(target.x - this.x, target.y - this.y);
 
       this.oraTimer++;
-      if (this.oraTimer >= 9) { // 0.15초 간격
+      if (this.oraTimer >= 9) {
         this.oraTimer = 0;
 
         if (dist <= auraRadius + target.radius) {
@@ -234,7 +426,6 @@ export class Ball {
             addFloatingText(target.x + (Math.random() - 0.5) * 10, target.y - 15, `2`, '#a55eea');
           } else {
             applyDamage(target, 2);
-            addFloatingText(target.x + (Math.random() - 0.5) * 10, target.y - 15, `-2`, '#ff3344');
           }
           triggerShake(3);
 
@@ -242,7 +433,7 @@ export class Ball {
             this.ultCharge++;
             if (this.ultCharge >= this.data.maxUltCharge) {
               this.ultCharge = 0;
-              this.timeStopChargeTimer = 120; // 2초 차징 시작
+              this.timeStopChargeTimer = 120;
               timeStopChargePool.play();
             }
           }
@@ -266,7 +457,7 @@ export class Ball {
         }
 
         if (this.timeStopChargeTimer === 0) {
-          this.timeStopTimer = 240; // 4초 정지
+          this.timeStopTimer = 240;
           this.spearThrown = false;
           triggerShake(25);
 
@@ -309,7 +500,6 @@ export class Ball {
           triggerShake(20);
           if (target.deferredDamage > 0) {
             applyDamage(target, target.deferredDamage);
-            addFloatingText(target.x, target.y - 25, `-${target.deferredDamage}`, '#ff3344');
             target.deferredDamage = 0;
           }
         }
@@ -326,7 +516,6 @@ export class Ball {
         this.eyeDmgTimer = 0;
         const totalDmg = this.eyeStacks.length * 3;
         applyDamage(this, totalDmg);
-        addFloatingText(this.x, this.y - 18, `-${totalDmg}`, '#ff3344');
       }
     }
 
@@ -354,7 +543,6 @@ export class Ball {
           this.scrollDmgTimer = 0;
           const tickDmg = Math.floor((this.scrollUltDmg || 45) / 15);
           applyDamage(this, tickDmg);
-          addFloatingText(this.x + (Math.random() - 0.5) * 12, this.y - 18, `-${tickDmg}`, '#ff3344');
           triggerShake(3);
 
           for (let k = 0; k < 5; k++) {
@@ -489,7 +677,6 @@ export class Ball {
           });
 
           applyDamage(this.aimTarget, 0);
-          addFloatingText(this.aimTarget.x, this.aimTarget.y - 20, '-0', '#ff3344');
           
           const hitAngle = Math.atan2(this.y - this.aimTarget.y, this.x - this.aimTarget.x);
           this.aimTarget.eyeStacks.push({ angle: hitAngle });
@@ -540,7 +727,6 @@ export class Ball {
       if (this.eatingDmgTimer >= 60) {
         this.eatingDmgTimer = 0;
         applyDamage(target, 15);
-        addFloatingText(this.x, this.y - 20, '-15', '#ff3344');
         triggerShake(8);
       }
 
@@ -628,7 +814,7 @@ export class Ball {
         const scale = minSpd / currentSpd;
         this.vx *= scale;
         this.vy *= scale;
-      } else if (currentSpd > maxSpd && !this.isDashing && this.wallDebuffTimer <= 0) {
+      } else if (currentSpd > maxSpd && !this.isDashing && this.wallDebuffTimer <= 0 && !this.isMegaBowling) {
         const scale = maxSpd / currentSpd;
         this.vx *= scale;
         this.vy *= scale;
@@ -640,7 +826,6 @@ export class Ball {
       if (dist < this.radius + target.radius + 4) {
         this.dashHitTarget = true;
         applyDamage(target, 20);
-        addFloatingText(target.x, target.y - 15, '-20', '#ff3344');
         triggerShake(10);
 
         const knockAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -661,7 +846,6 @@ export class Ball {
 
     if (hitWall && this.wallDebuffTimer > 0) {
       applyDamage(this, 5);
-      addFloatingText(this.x, this.y - 15, '-5', '#ff3344');
       triggerShake(4);
     }
 
@@ -677,23 +861,147 @@ export class Ball {
       }
     }
 
-    if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst && this.data.coolSpeed > 0) {
+    if (!this.isEating && !target.isEating && this.stunTimer <= 0 && !this.isAiming && !this.isFurryBurst && !this.isSlamming && !this.isMegaBowling && this.data.coolSpeed > 0) {
       if (this.skillCool < 100) {
         this.skillCool += this.data.coolSpeed;
       }
       if (this.skillCool >= 100) {
         this.skillCool = 100;
-        this.castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText);
+        this.castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText, applyDamage);
       }
     }
   }
 
-  castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText) {
+  castSkill(target, skillEffects, projectiles, ARENA_SIZE, triggerShake, addFloatingText, applyDamage) {
     this.skillCool = 0;
     const isUltReady = this.ultCharge >= this.data.maxUltCharge;
     const skillType = this.data.basic.type;
 
-    if (skillType === 'BL_THROW') {
+    if (skillType === 'EARTHQUAKE_SLAM' || skillType === 'MEGA_BOWLING') {
+      if (isUltReady) {
+        this.ultCharge = 0;
+        this.isMegaBowling = true;
+        this.megaBowlingTimer = 300;
+        this.megaBowlingHits = 0;
+        this.megaBowlingHitCooldown = 0;
+        this.megaBowlingRollAngle = 0;
+        target.hasTakenMagmaDamage = false;
+
+        const randAngle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(randAngle) * 8.0;
+        this.vy = Math.sin(randAngle) * 8.0;
+
+        triggerShake(18);
+      } else {
+        this.ultCharge++;
+        triggerShake(10);
+
+        this.isSlamming = true;
+        this.slamProgress = 0;
+        this.slamStartX = this.x;
+        this.slamStartY = this.y;
+        this.slamTargetX = target.x;
+        this.slamTargetY = target.y;
+      }
+    } else if (skillType === 'DICE_ROLL') {
+      if (isUltReady) {
+        this.ultCharge = 0;
+        const isJackpot = Math.random() < 0.25;
+
+        rouletteSpinPool.play();
+
+        skillEffects.push({
+          type: 'SLOT_MACHINE_ANIM',
+          x: ARENA_SIZE / 2,
+          y: ARENA_SIZE / 2,
+          isWin: isJackpot,
+          target: target,
+          owner: this,
+          life: 80,
+          maxLife: 80,
+          triggered: false
+        });
+
+        this.currentDiceNum = null;
+        this.diceAuraTimer = 0;
+        this.diceAuraLevel = 0;
+      } else {
+        this.ultCharge++;
+
+        if (this.currentDiceNum === null) {
+          this.currentDiceNum = Math.floor(Math.random() * 6) + 1;
+
+          diceRollPool.play();
+
+          skillEffects.push({
+            type: 'DICE_ROULETTE_SPIN',
+            x: ARENA_SIZE / 2,
+            y: ARENA_SIZE / 2,
+            targetNum: this.currentDiceNum,
+            life: 38,
+            maxLife: 38
+          });
+        }
+
+        const diceNum = this.currentDiceNum;
+        this.diceAuraTimer = 9999;
+        this.diceAuraLevel = diceNum;
+
+        const angle = Math.atan2(target.y - this.y, target.x - this.x);
+
+        if (diceNum === 1) {
+          diceSelfHarmPool.play();
+
+          applyDamage(this, 7);
+          triggerShake(10);
+          this.vx = -Math.cos(angle) * 6.5;
+          this.vy = -Math.sin(angle) * 6.5;
+
+          skillEffects.push({
+            type: 'DICE_IMPACT',
+            x: this.x,
+            y: this.y,
+            diceNum: 1,
+            color: '#ff4757',
+            life: 30,
+            maxLife: 30
+          });
+        } else if (diceNum >= 2 && diceNum <= 5) {
+          diceAttackPool.play();
+
+          const dmg = diceNum * 5;
+          triggerShake(4 + diceNum * 2);
+
+          projectiles.push({
+            x: this.x,
+            y: this.y,
+            vx: Math.cos(angle) * 9.9,
+            vy: Math.sin(angle) * 9.9,
+            damage: dmg,
+            diceNum: diceNum,
+            target: target,
+            color: '#f1c40f',
+            isDice: true,
+            life: 90
+          });
+        } else if (diceNum === 6) {
+          diceSwordPool.play();
+
+          skillEffects.push({
+            type: 'LIGHT_SWORD_DROP',
+            target: target,
+            owner: this,
+            targetX: target.x,
+            targetY: target.y,
+            angle: angle,
+            damage: 35,
+            life: 25,
+            maxLife: 25,
+            triggered: false
+          });
+        }
+      }
+    } else if (skillType === 'BL_THROW') {
       if (isUltReady) {
         this.ultCharge = 0;
         this.isEatable = true;
@@ -979,25 +1287,203 @@ export class Ball {
     }
 
     ctx.save();
+
+    const jumpHeight = this.isSlamming ? Math.sin(Math.min(1, this.slamProgress) * Math.PI) * 55 : 0;
+    const drawY = this.y - jumpHeight;
+
+    if (this.isSlamming) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y + 4, this.radius * (1 - jumpHeight / 110), this.radius * 0.4 * (1 - jumpHeight / 110), 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 📌 4. 마그마 화상 상태일 때 바닥에 타오르는 붉은 발광 오라 그리기
+    if (this.magmaBurnTimer > 0 && this.hp > 0) {
+      ctx.save();
+      ctx.translate(this.x, drawY);
+
+      const pulse = 1 + Math.sin(Date.now() / 40) * 0.15;
+      const burnR = (this.radius + 6) * pulse;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, burnR, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ff3000';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ff6c00';
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, burnR - 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 60, 0, 0.25)';
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    if (this.isMegaBowling && this.hp > 0) {
+      ctx.save();
+      ctx.translate(this.x, drawY);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
+      ctx.strokeStyle = '#e84118';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#d63031';
+      ctx.shadowBlur = 20;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(214, 48, 49, 0.45)';
+      ctx.fill();
+
+      ctx.rotate(this.megaBowlingRollAngle);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#e84118';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius - 2, 0.2, Math.PI * 0.8);
+      ctx.strokeStyle = '#f1c40f';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      const holes = [
+        { x: -5, y: -6, r: 2.8 },
+        { x: 4, y: -6, r: 2.8 },
+        { x: 0, y: 3, r: 3.2 }
+      ];
+      ctx.fillStyle = '#12141d';
+      holes.forEach(h => {
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
+    }
+
+    if (this.currentDiceNum !== null && this.hp > 0) {
+      ctx.save();
+      ctx.translate(this.x, drawY - this.radius - 14);
+
+      ctx.fillStyle = '#12141d';
+      ctx.strokeStyle = '#f1c40f';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#f1c40f';
+      ctx.shadowBlur = 8;
+      ctx.fillRect(-8, -8, 16, 16);
+      ctx.strokeRect(-8, -8, 16, 16);
+
+      ctx.fillStyle = '#f1c40f';
+      ctx.font = 'bold 10px "NeoDunggeunmo", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.currentDiceNum, 0, 1);
+
+      ctx.restore();
+    }
     
+    if (this.diceAuraTimer > 0) {
+      const level = this.diceAuraLevel;
+
+      ctx.save();
+      ctx.translate(this.x, drawY);
+
+      if (level === 1) {
+        ctx.shadowColor = '#ff4757';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = 'rgba(255, 71, 87, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius + 6 + Math.sin(Date.now() / 40) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (level >= 2 && level <= 5) {
+        const baseRadius = this.radius + 6 + level * 2.5;
+
+        ctx.shadowColor = level >= 4 ? '#f1c40f' : '#00cec9';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = level >= 4 ? 'rgba(241, 196, 15, 0.7)' : 'rgba(0, 206, 201, 0.7)';
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const time = Date.now() / 150;
+        for (let i = 0; i < level; i++) {
+          const angle = time + (Math.PI * 2 / level) * i;
+          const sx = Math.cos(angle) * (baseRadius + 2);
+          const sy = Math.sin(angle) * (baseRadius + 2);
+
+          ctx.fillStyle = level >= 4 ? '#f1c40f' : '#00cec9';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (level === 6) {
+        const baseR = this.radius + 12;
+        const rotTime = Date.now() / 120;
+
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 18;
+
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, baseR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, baseR + 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        for (let d = 0; d < 4; d++) {
+          const dAngle = rotTime + (Math.PI / 2) * d;
+          const dx = Math.cos(dAngle) * (baseR + 5);
+          const dy = Math.sin(dAngle) * (baseR + 5);
+
+          ctx.save();
+          ctx.translate(dx, dy);
+          ctx.rotate(dAngle);
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(0, -4); ctx.lineTo(3, 0); ctx.lineTo(0, 4); ctx.lineTo(-3, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      ctx.restore();
+    }
+
     if (this.data && this.data.basic.type === 'ORA_AURA' && this.hp > 0) {
       const auraR = this.radius * 2.8;
 
       ctx.save();
       
-      const grad = ctx.createRadialGradient(this.x, this.y, this.radius, this.x, this.y, auraR);
+      const grad = ctx.createRadialGradient(this.x, drawY, this.radius, this.x, drawY, auraR);
       grad.addColorStop(0, 'rgba(95, 39, 205, 0.35)');
       grad.addColorStop(0.7, 'rgba(156, 136, 255, 0.18)');
       grad.addColorStop(1, 'rgba(95, 39, 205, 0)');
       
       ctx.beginPath();
-      ctx.arc(this.x, this.y, auraR, 0, Math.PI * 2);
+      ctx.arc(this.x, drawY, auraR, 0, Math.PI * 2);
       ctx.fillStyle = grad;
       ctx.fill();
 
       const rotAngle = (Date.now() / 600) % (Math.PI * 2);
       ctx.save();
-      ctx.translate(this.x, this.y);
+      ctx.translate(this.x, drawY);
       ctx.rotate(rotAngle);
 
       ctx.beginPath();
@@ -1014,7 +1500,7 @@ export class Ball {
       ctx.restore();
 
       ctx.beginPath();
-      ctx.arc(this.x, this.y, auraR, 0, Math.PI * 2);
+      ctx.arc(this.x, drawY, auraR, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(95, 39, 205, 0.5)';
       ctx.lineWidth = 1.2;
       ctx.stroke();
@@ -1042,17 +1528,17 @@ export class Ball {
       ctx.save();
       const rotAngle = (Date.now() / 150) % (Math.PI * 2);
       
-      const grad = ctx.createRadialGradient(this.x, this.y, this.radius * 0.5, this.x, this.y, this.radius + 18);
+      const grad = ctx.createRadialGradient(this.x, drawY, this.radius * 0.5, this.x, drawY, this.radius + 18);
       grad.addColorStop(0, 'rgba(255, 51, 68, 0.55)');
       grad.addColorStop(0.6, 'rgba(120, 10, 25, 0.38)');
       grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius + 18, 0, Math.PI * 2);
+      ctx.arc(this.x, drawY, this.radius + 18, 0, Math.PI * 2);
       ctx.fillStyle = grad;
       ctx.fill();
 
-      ctx.translate(this.x, this.y);
+      ctx.translate(this.x, drawY);
       ctx.rotate(rotAngle);
       
       ctx.fillStyle = '#ff1744';
@@ -1083,7 +1569,7 @@ export class Ball {
     if (this.counterStanceTimer > 0) {
       ctx.save();
       const rotAngle = (Date.now() / 700) % (Math.PI * 2);
-      ctx.translate(this.x, this.y);
+      ctx.translate(this.x, drawY);
       ctx.rotate(rotAngle);
 
       ctx.strokeStyle = '#c23616';
@@ -1114,15 +1600,15 @@ export class Ball {
 
     if (this.ultCharge >= this.data.maxUltCharge) {
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
+      ctx.arc(this.x, drawY, this.radius + 4, 0, Math.PI * 2);
       ctx.strokeStyle = '#ffc107';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
-    if (!this.isEaten && this.hp > 0) {
+    if (!this.isEaten && !this.isMegaBowling && this.hp > 0) {
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.arc(this.x, drawY, this.radius, 0, Math.PI * 2);
       
       if (this.isMirrorP2) {
         ctx.fillStyle = this.color;
@@ -1132,7 +1618,7 @@ export class Ball {
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius + 2, 0, Math.PI * 2);
+        ctx.arc(this.x, drawY, this.radius + 2, 0, Math.PI * 2);
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 1.5;
         ctx.stroke();
@@ -1152,20 +1638,20 @@ export class Ball {
       
       const shakeX = (this.stunTimer > 0 || this.isFurryBurst) ? (Math.random() - 0.5) * 4 : 0;
       const shakeY = (this.stunTimer > 0 || this.isFurryBurst) ? (Math.random() - 0.5) * 4 : 0;
-      ctx.fillText(displayEmoji, this.x + shakeX, this.y + 1 + shakeY);
+      ctx.fillText(displayEmoji, this.x + shakeX, drawY + 1 + shakeY);
     }
 
     if (this.isFurryBurst) {
       ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffc107';
-      ctx.fillText('✨SSR✨', this.x, this.y - this.radius - 8);
+      ctx.fillText('✨SSR✨', this.x, drawY - this.radius - 8);
     }
 
     if (this.eyeStacks.length > 0 && this.hp > 0) {
       this.eyeStacks.forEach(stack => {
         const eyeX = this.x + Math.cos(stack.angle) * (this.radius + 2);
-        const eyeY = this.y + Math.sin(stack.angle) * (this.radius + 2);
+        const eyeY = drawY + Math.sin(stack.angle) * (this.radius + 2);
         ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -1174,10 +1660,10 @@ export class Ball {
     }
 
     if (this.isAiming && this.aimTarget) {
-      const aimAngle = Math.atan2(this.aimTarget.y - this.y, this.aimTarget.x - this.x);
+      const aimAngle = Math.atan2(this.aimTarget.y - drawY, this.aimTarget.x - this.x);
       
       ctx.save();
-      ctx.translate(this.x, this.y);
+      ctx.translate(this.x, drawY);
       ctx.rotate(aimAngle);
 
       ctx.fillStyle = '#2f3542';
@@ -1191,7 +1677,7 @@ export class Ball {
 
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(this.x, this.y);
+      ctx.moveTo(this.x, drawY);
       ctx.lineTo(this.aimTarget.x, this.aimTarget.y);
       ctx.strokeStyle = this.isUltAim ? this.color : 'rgba(255, 51, 68, 0.5)';
       ctx.lineWidth = this.isUltAim ? 2 : 1.5;
@@ -1242,7 +1728,7 @@ export class Ball {
       for (let i = 0; i < 3; i++) {
         const starAngle = time + (Math.PI * 2 / 3) * i;
         const sx = this.x + Math.cos(starAngle) * starRadius;
-        const sy = this.y - 10 + Math.sin(starAngle) * 5;
+        const sy = drawY - 10 + Math.sin(starAngle) * 5;
         ctx.font = 'bold 12px "NeoDunggeunmo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -1255,7 +1741,7 @@ export class Ball {
     if (this.isWinner) {
       ctx.font = 'bold 20px "NeoDunggeunmo", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('👑', this.x, this.y - this.radius - 6);
+      ctx.fillText('👑', this.x, drawY - this.radius - 6);
     }
   }
 }

@@ -110,5 +110,33 @@ export const CHAR_DB = {
     desc: '상시 발동 오라오라 구역(2.8배 확장, 2뎀/0.15초)으로 적을 타격하며, 12타 적중 시 4초간 시간을 멈추고 스탠드 화살(30뎀)을 던집니다.',
     basic: { name: '오라오라 러쉬', damage: 2, type: 'ORA_AURA' },
     ult: { name: '스타 박래티나: 더 월드', damage: 30, type: 'TIME_STOP_WORLD' }
+  },
+  GAMBLER: {
+    name: '도박꾼 공병은',
+    emoji: '🎲',
+    color: '#f1c40f',
+    altColor: '#00cec9',
+    hp: 250,
+    speed: 1.55,
+    coolSpeed: 0.40,
+    maxUltCharge: 3,
+    stats: { atk: 92, def: 38, spd: 82, cool: 76, ult: 98, utl: 95 },
+    desc: '운에 모든 것을 건 인생역전 도박꾼! 고정된 주사위 수치와 🎰 777 잭팟 연출로 전황을 뒤엎습니다.',
+    basic: { name: '주사위 던지기', damage: 0, type: 'DICE_ROLL' },
+    ult: { name: '올인 잭팟 777', damage: 77, type: 'ALL_IN_JACKPOT' }
+  },
+  KIM_AWAKENED: {
+    name: '김민채(각성)',
+    emoji: '🌋',
+    color: '#e84118',
+    altColor: '#ff7675',
+    hp: 250,
+    speed: 1.5,
+    coolSpeed: 0.38,
+    maxUltCharge: 3,
+    stats: { atk: 88, def: 85, spd: 65, cool: 75, ult: 90, utl: 78 },
+    desc: '강력한 170kg 지진 찍기와 5초간 마그마 길을 남기며 폭주하는 메가 마그마 볼링 스페셜리스트',
+    basic: { name: '170kg 지진 찍기', damage: 18, type: 'EARTHQUAKE_SLAM' },
+    ult: { name: '메가 마그마 볼링', damage: 16, type: 'MEGA_BOWLING' }
   }
 };
